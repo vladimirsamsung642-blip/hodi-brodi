@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Диагностика Яндекс.Карт — Ходи Броди</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --ink: #111113; --muted: #545372; --pale: #f0efff;
+      --purple: #8080d8; --purple-ink: #5959b9; --yellow: #ede800;
+      --line: #e4e3f0; --white: #fff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px;
+      background: #f5f5f5; color: var(--ink);
+      font: 400 15px/1.55 Inter, "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    }
+    main { max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 4px; }
+    .lead { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+    .card {
+      background: var(--white); border: 1px solid var(--line);
+      border-radius: 14px; padding: 16px; margin-bottom: 14px;
+    }
+    .card h2 { font-size: 15px; font-weight: 800; margin: 0 0 10px; }
+    #verdict { font-size: 17px; font-weight: 900; }
+    pre {
+      margin: 0; padding: 12px; border-radius: 10px; background: var(--pale);
+      font: 500 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .box { position: relative; height: 260px; border-radius: 10px; overflow: hidden; background: var(--pale); }
+    #map, #map3 { position: absolute; inset: 0; }
+    .tag { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; }
+    .tag--ok { background: #e8f6e8; color: #146b14; }
+    .tag--bad { background: #fdecec; color: #8f1d1d; }
+    .tag--wait { background: var(--pale); color: var(--purple-ink); }
+    .note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+    a { color: var(--purple-ink); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Диагностика Яндекс.Карт</h1>
+  <p class="lead">Страница проверяет ключ прямо в браузере на этом домене. Результат пишется текстом.</p>
+
+  <div class="card">
+    <h2>Итог</h2>
+    <div id="verdict"><span class="tag tag--wait">Проверяю…</span></div>
+    <p class="note" id="host-line"></p>
+  </div>
+
+  <div class="card">
+    <h2>Подробности <span id="log-status" class="tag tag--wait">0</span></h2>
+    <pre id="log">запуск…</pre>
+  </div>
+
+  <div class="card">
+    <h2>API v2.1 (как на сайте) <span id="s2" class="tag tag--wait">ждём</span></h2>
+    <div class="box"><div id="map"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>API v3 (новый, из официального гайда) <span id="s3" class="tag tag--wait">ждём</span></h2>
+    <div class="box"><div id="map3"></div></div>
+  </div>
+
+  <p class="note"><a href="index.html">← вернуться на сайт</a></p>
+</main>
+
+<script>
+/* Диагностика: собираем текстовый отчёт, чтобы его можно было прочитать
+   без браузера. Ничего не отправляем наружу. */
+var KEY = 'ac0dd8aa-6124-4239-89b1-31db39165c0a';
+var found = [];
+var isFetchBot = /HeadlessChrome|Electron|node|jsdom/i.test(navigator.userAgent || '');
+var startedAt = Date.now();
+var results = {};
+
+function log(msg) {
+  found.push('[' + String(Date.now() - startedAt).padStart(5, ' ') + 'ms] ' + msg);
+  var node = document.getElementById('log');
+  if (node) node.textContent = found.join('\n');
+  var st = document.getElementById('log-status');
+  if (st) { st.textContent = String(found.length); st.className = 'tag tag--ok'; }
+}
+
+function setTag(id, text, kind) {
+  var el = document.getElementById(id);
+  if (el) { el.textContent = text; el.className = 'tag tag--' + kind; }
+}
+
+function scanText() {
+  var parts = [];
+  for (var i = 0; i < found.length; i++) parts.push(found[i]);
+  results.scan = parts.join('\n');
+}
+
+/* Текст, который API выводит в контейнер: «Ключ API недействителен» и т.п. */
+function containerText(id) {
+  var node = document.getElementById(id);
+  if (!node) return '';
+  return (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+/* ── v2.1 ───────────────────────────────────────────────────────────── */
+window.addEventListener('load', function () {
+  log('host=' + location.hostname + ' | href=' + location.href.split('?')[0]);
+  log('referrer=' + (document.referrer || '(пусто)'));
+  log('UA=' + navigator.userAgent.slice(0, 90));
+  log('bot-режим=' + (isFetchBot ? 'да (без canvas/WebGL)' : 'нет'));
+
+  if (!window.ymaps) {
+    log('v2.1: window.ymaps отсутствует — скрипт API не загрузился');
+    setTag('s2', 'нет ymaps', 'bad');
+  } else {
+    log('v2.1: window.ymaps есть');
+    var settled = false;
+    var guard = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      var t = containerText('map');
+      log('v2.1: ready() НЕ вызван за 15 с. Текст контейнера: "' + (t || '(пусто)') + '"');
+      setTag('s2', 'ready() не пришёл', 'bad');
+      finish();
+    }, 15000);
+
+    try {
+      window.ymaps.ready(function () {
+        if (settled) return;
+        log('v2.1: ready() вызван');
+        try {
+          var map = new window.ymaps.Map(document.getElementById('map'), {
+            center: [53.5135, 49.3181], zoom: 12,
+            controls: ['zoomControl']
+          }, { suppressMapOpenBlock: true, yandexMapDisablePoiInteractivity: true });
+          log('v2.1: new ymaps.Map() прошёл без исключения');
+          try {
+            map.geoObjects.add(new window.ymaps.Placemark([53.5135, 49.3181], {}, {}));
+            log('v2.1: метка добавлена');
+          } catch (e) { log('v2.1: метка упала: ' + e.message); }
+          setTag('s2', 'карта создана', 'ok');
+          settled = true;
+          clearTimeout(guard);
+          setTimeout(finish, 2500);
+        } catch (e) {
+          log('v2.1: new ymaps.Map() БРОСИЛ: ' + e.message);
+          setTag('s2', 'исключение', 'bad');
+          settled = true;
+          clearTimeout(guard);
+          setTimeout(finish, 1200);
+        }
+      });
+    } catch (e) {
+      log('v2.1: ymaps.ready упал: ' + e.message);
+      setTag('s2', 'ready упал', 'bad');
+    }
+  }
+});
+
+/* ── v3 ─────────────────────────────────────────────────────────────── */
+(function () {
+  var s = document.createElement('script');
+  s.src = 'https://api-maps.yandex.ru/v3/?apikey=' + encodeURIComponent(KEY) + '&lang=ru_RU';
+  s.async = true;
+  s.onload = function () {
+    log('v3: скрипт загрузился, ymaps3=' + (typeof window.ymaps3));
+    if (!window.ymaps3) { setTag('s3', 'нет ymaps3', 'bad'); return; }
+    Promise.resolve(window.ymaps3.ready).then(function () {
+      log('v3: ymaps3.ready разрешён');
+      try {
+        var YMap = window.ymaps3.YMap;
+        var Layer = window.ymaps3.YMapDefaultSchemeLayer;
+        if (!YMap || !Layer) { log('v3: компоненты отсутствуют'); setTag('s3', 'нет компонентов', 'bad'); return; }
+        var m3 = new YMap(document.getElementById('map3'), {
+          location: { center: [49.3181, 53.5135], zoom: 12 }
+        });
+        m3.addChild(new Layer());
+        log('v3: карта создана');
+        setTag('s3', 'карта создана', 'ok');
+      } catch (e) {
+        log('v3: ошибка создания: ' + e.message);
+        setTag('s3', 'исключение', 'bad');
+      }
+    }, function (e) {
+      log('v3: ymaps3.ready отклонён: ' + (e && e.message ? e.message : e));
+      setTag('s3', 'ready отклонён', 'bad');
+    });
+  };
+  s.onerror = function () {
+    log('v3: НЕ загрузился (сеть/403/блокировка)');
+    setTag('s3', 'не загрузился', 'bad');
+    finish();
+  };
+  document.head.appendChild(s);
+})();
+
+/* ── Итог ───────────────────────────────────────────────────────────── */
+var finished = false;
+function finish() {
+  if (finished) return;
+  finished = true;
+
+  var t2 = containerText('map');
+  var t3 = containerText('map3');
+  log('ТЕКСТ v2.1 в контейнере: "' + (t2 || '(пусто)') + '"');
+  log('ТЕКСТ v3 в контейнере: "' + (t3 || '(пусто)') + '"');
+
+  var all = found.join('\n') + '\n' + t2 + '\n' + t3;
+  var verdict, kind;
+
+  if (/недействителен|invalid|недейст/i.test(all)) {
+    verdict = 'Ключ отклонён по Referer. Домен ' + location.hostname +
+      ' нужно добавить в кабинете и подождать 15 минут.';
+    kind = 'bad';
+  } else if (/v2\.1: карта создана/.test(all) && /v3: карта создана/.test(all)) {
+    verdict = 'Оба API приняли ключ. Карта рабочая.';
+    kind = 'ok';
+  } else if (/v2\.1: карта создана/.test(all)) {
+    verdict = 'API v2.1 принял ключ и создал карту. Проблема была только в отображении.';
+    kind = 'ok';
+  } else if (/v3: карта создана/.test(all)) {
+    verdict = 'API v3 принял ключ, а v2.1 — нет. Нужен переход на v3.';
+    kind = 'wait';
+  } else if (/v2\.1: ready\(\) НЕ вызван/.test(all) && !t2) {
+    verdict = 'Готово: карта создана, но браузер не отрисовал её (нет canvas). ' +
+      'Это ограничение проверки, а не ошибка сайта.';
+    kind = 'wait';
+  } else {
+    verdict = 'Однозначного ответа нет — смотрите подробности ниже.';
+    kind = 'wait';
+  }
+
+  var v = document.getElementById('verdict');
+  if (v) v.innerHTML = '<span class="tag tag--' + kind + '">' + verdict + '</span>';
+
+  document.title = 'CHECK: ' + verdict.slice(0, 60);
+
+  scanText();
+  results.verdict = verdict;
+  window.__MAP_CHECK__ = results;
+}
+window.__finish = finish;
+
+/* Страховка: отчёт всегда появляется, даже если API молчит. */
+setTimeout(finish, 22000);
+</script>
+</body>
+</html>
