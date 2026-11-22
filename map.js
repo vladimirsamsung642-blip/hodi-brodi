@@ -36,7 +36,6 @@ const mapState = {
   map: null,
   clusterer: null,
   placemarks: new Map(),   /* id точки -> метка */
-  balloons: new Map(),     /* id точки -> балун */
   ready: false,
   failed: false,
   pendingRender: false
@@ -175,24 +174,32 @@ function renderMapPoints() {
   const clusterer = mapState.clusterer;
   clusterer.removeAll();
   mapState.placemarks.clear();
-  mapState.balloons.clear();
 
+  /* Балун отдаём самому API через balloonContentBody: это штатный путь.
+     Отдельный ymaps.Balloon(map) создавать не нужно — документация прямо
+     не рекомендует, и вместе с openBalloonOnClick получалось два балуна. */
   const marks = wanted.map(point => {
-    const balloon = new window.ymaps.Balloon(mapState.map);
-    balloon.setContent(balloonHtml(point));
-    mapState.balloons.set(point.id, balloon);
-
-    const placemark = new window.ymaps.Placemark(point.coords, {}, {
-      preset: placemarkPreset(point.type),
+    const placemark = new window.ymaps.Placemark(point.coords, {
       balloonContentBody: balloonHtml(point),
-      hintContent: point.name,
+      hintContent: point.name
+    }, {
+      preset: placemarkPreset(point.type),
       openBalloonOnClick: true,
-      balloonPanelMaxMapArea: 0
+      balloonPanelMaxMapArea: 0,
+      balloonMaxWidth: 300
     });
 
-    placemark.events.add('click', () => {
-      balloon.open(placemark.geometry.getCoordinates());
-      markCardSelected(point);
+    placemark.events.add('click', () => markCardSelected(point));
+
+    /* Фото в балуне внешнее: если не загрузится — прячем его, чтобы
+       балун не показывал пустую рамку. */
+    placemark.events.add('balloonopen', () => {
+      const img = document.querySelector('.ym-balloon-photo');
+      if (!img || img.dataset.guard) return;
+      img.dataset.guard = '1';
+      const hide = () => img.classList.add('is-broken');
+      if (img.complete && img.naturalWidth === 0) hide();
+      img.addEventListener('error', hide, { once: true });
     });
 
     mapState.placemarks.set(point.id, placemark);
@@ -268,8 +275,12 @@ function focusOnMap(pointId) {
     duration: 400,
     checkZoomRange: true
   }).then(() => {
-    const balloon = mapState.balloons.get(key);
-    if (balloon) balloon.open(placemark.geometry.getCoordinates());
+    /* Штатный балун метки: открывается поверх кластера, умеет autoPan. */
+    if (typeof placemark.balloon?.open === 'function') {
+      placemark.balloon.open();
+    } else if (typeof mapState.map.balloon?.open === 'function') {
+      mapState.map.balloon.open(placemark.geometry.getCoordinates(), placemark.properties.getAll());
+    }
   });
 
   return true;
