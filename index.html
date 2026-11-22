@@ -4,15 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#8080d8">
-  <meta name="description" content="Броди по городу, выполняй задания у мест и копи бутсы на скидки и мерч.">
-  <title>Броди по городу — задания, бутсы, открытия</title>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="styles.css?v=20261122-4">
+  <meta name="description" content="Ходи Броди — городская афиша и задания: исследуй места, выполняй задания и копи бутсы на скидки и мерч.">
+  <title>Ходи Броди — задания, бутсы, открытия</title>
+  <link rel="stylesheet" href="styles.css?v=20261122-redesign">
 </head>
 <body>
-<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <symbol id="i-boot" viewBox="54 0 36 29"><path d="M80.2637 12.963C84.6911 12.3858 88.7516 15.4818 89.333 19.8781L89.6928 22.5983C89.8588 23.8544 88.968 25.0065 87.703 25.1715L63.6528 28.3071C62.3878 28.4721 61.2276 27.5874 61.0615 26.3313L60.1755 19.631C59.9228 17.72 61.0679 15.9469 62.8259 15.3264C63.2352 15.182 63.6535 15.4258 63.9021 15.7796C64.9058 17.2079 66.8563 18.0412 68.9598 17.7669C71.0727 17.4914 72.7459 16.1758 73.3373 14.5283C73.4795 14.1316 73.8039 13.8053 74.2244 13.7504L80.2637 12.963Z" fill="currentColor" stroke="none"/>
-<path d="M58.5097 3.52202C59.0923 3.30773 59.6597 3.79769 59.87 4.37812C60.0998 5.01192 60.531 5.59224 61.1423 6.0164C62.6434 7.05789 64.6616 6.76359 65.65 5.35905C65.8794 5.03309 66.3377 4.88356 66.6659 5.11133L70.6043 7.84398C72.6999 9.29798 73.2116 12.1636 71.7473 14.2444C70.283 16.3252 67.3972 16.8332 65.3016 15.3792L55.1949 8.36668C54.5332 7.90752 54.3716 7.00269 54.834 6.34558C55.7781 5.00403 57.0729 4.05053 58.5097 3.52202Z" fill="currentColor" stroke="none"/></symbol>
+<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <symbol id="i-boot" viewBox="54 0 36 29"><path d="M80.2637 12.963C84.6911 12.3858 88.7516 15.4818 89.333 19.8781L89.6928 22.5983C89.8588 23.8544 88.968 25.0065 87.703 25.1715L63.6528 28.3071C62.3878 28.4721 61.2276 27.5874 61.0615 26.3313L60.1755 19.631C59.9228 17.72 61.0679 15.9469 62.8259 15.3264C63.2352 15.182 63.6535 15.4258 63.9021 15.7796C64.9058 17.2079 66.8563 18.0412 68.9598 17.7669C71.0727 17.4914 72.7459 16.1758 73.3373 14.5283C73.4795 14.1316 73.8039 13.8053 74.2244 13.7504L80.2637 12.963Z" fill="currentColor" stroke="none"/><path d="M58.5097 3.52202C59.0923 3.30773 59.6597 3.79769 59.87 4.37812C60.0998 5.01192 60.531 5.59224 61.1423 6.0164C62.6434 7.05789 64.6616 6.76359 65.65 5.35905C65.8794 5.03309 66.3377 4.88356 66.6659 5.11133L70.6043 7.84398C72.6999 9.29798 73.2116 12.1636 71.7473 14.2444C70.283 16.3252 67.3972 16.8332 65.3016 15.3792L55.1949 8.36668C54.5332 7.90752 54.3716 7.00269 54.834 6.34558C55.7781 5.00403 57.0729 4.05053 58.5097 3.52202Z" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
   <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 0 0 4v4a2 2 0 0 0 0 4h16a2 2 0 0 0 0-4v-4a2 2 0 0 0 0-4Z"/><path d="M13 6v2m0 3v2m0 3v2"/></symbol>
@@ -24,86 +22,301 @@
   <symbol id="i-shirt" viewBox="0 0 48 48"><path d="m15 8-10 6 5 10 5-3v21h18V21l5 3 5-10-10-6-5 5h-8l-5-5Z"/><path d="M19 13a5 5 0 0 0 10 0"/></symbol>
   <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 1.8 7.1L21 12l-7.2 2.7L12 22l-2-7.3L3 12l7-2.9L12 2Z"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
 </svg>
+
+<a class="skip-link" href="#main">Перейти к содержанию</a>
+
 <header class="site-header">
   <div class="header-inner">
-    <a class="brand" href="https://hodi-brodi.ru/" aria-label="Ходи Броди — официальный сайт"><img src="assets/logo.svg" alt="Ходи Броди"></a>
-    <nav class="desktop-nav" aria-label="Главная навигация"><a href="#map-section">Карта и задания</a><a href="#collections">Подборки</a><a href="#exchange">Скидки</a><a href="profile.html#shop">Своя лавка</a><a href="#how">Как играть</a></nav>
-    <a class="wallet-pill" href="profile.html#boots" aria-label="Открыть баланс бутс в профиле"><svg><use href="#i-boot"/></svg><b id="header-balance">0</b><span>бутс</span><span class="wallet-plus">+</span></a>
-    <a class="profile-link" href="profile.html" aria-label="Открыть профиль"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1a7 7 0 0 1 14 0v1"/></svg><span>Профиль</span></a>
-    <button class="menu-button" aria-label="Открыть меню" aria-expanded="false">☰</button>
-  </div>
-  <nav class="mobile-nav" aria-label="Мобильная навигация"><a href="#map-section">Карта и задания</a><a href="#collections">Подборки</a><a href="#exchange">Скидки</a><a href="profile.html#shop">Своя лавка</a><a href="#how">Как играть</a><a href="profile.html">Мой профиль</a></nav>
-</header>
-<main id="top">
-  <section class="hero" aria-labelledby="hero-title">
-    <svg class="hero-lines" viewBox="0 0 1500 480" preserveAspectRatio="none" aria-hidden="true"><path d="M-30 340C120 395 180 365 168 275S195 150 270 166"/><path d="M455 390c100-77 176-86 283-8s191 95 321 40 194-153 470-125"/><path d="M1070 75c-14 58 22 116 93 154"/><path d="M350 95c22 32 42 52 77 62"/></svg>
-    <span class="hero-scribble hero-cross" aria-hidden="true">×</span><span class="hero-scribble hero-star" aria-hidden="true">✳</span>
-    <div class="hero-content">
-      <span class="hero-kicker"><i></i> НОВЫЙ СПОСОБ ИССЛЕДОВАТЬ ГОРОД</span>
-      <h1 id="hero-title">Броди.<br>Выполняй. Копи.</h1>
-      <p>Исследуй места, закрывай задания и зарабатывай <strong>бутсы</strong> — свою валюту впечатлений.</p>
-      <div class="hero-actions"><a class="button-yellow" href="#map-section">На карту <svg><use href="#i-arrow"/></svg></a><a class="hero-link" href="#exchange">Куда потратить бутсы? <span>↓</span></a></div>
+    <a class="brand" href="https://hodi-brodi.ru/" aria-label="Ходи Броди — официальный сайт">
+      <img src="assets/logo.svg" alt="Ходи Броди">
+      <span class="brand-word" aria-hidden="true">Ходи Броди</span>
+    </a>
+    <nav class="primary-nav" aria-label="Главная навигация">
+      <a href="#map-section">Карта и задания</a>
+      <a href="#collections">Подборки</a>
+      <a href="#exchange">Обмен бутс</a>
+      <a href="#shop-promo">Своя лавка</a>
+      <a href="#how">Как играть</a>
+    </nav>
+    <div class="header-actions">
+      <a class="wallet" href="profile.html#boots" aria-label="Баланс бутс в профиле">
+        <svg aria-hidden="true"><use href="#i-boot"/></svg>
+        <span class="wallet-value" id="header-balance">0</span>
+        <span class="wallet-unit">бутс</span>
+        <span class="wallet-plus" aria-hidden="true">+</span>
+      </a>
+      <a class="profile-link" href="profile.html" aria-label="Открыть профиль">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5 20v-1.2a7 7 0 0 1 14 0V20"/></svg>
+        <span>Профиль</span>
+      </a>
+      <button class="menu-button" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="mobile-nav">
+        <svg aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
     </div>
-    <div class="hero-wallet"><span class="boot-badge"><svg><use href="#i-boot"/></svg></span><div><small>ТВОЙ БАЛАНС</small><strong><span id="hero-balance">0</span> <em>бутс</em></strong></div><span class="wallet-spark">✳</span></div>
-    <div class="hero-footnote"><span>✳</span> Выходи в город — зарабатывай по пути</div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Мобильная навигация">
+    <a href="#map-section">Карта и задания</a>
+    <a href="#collections">Подборки</a>
+    <a href="#exchange">Обмен бутс</a>
+    <a href="#shop-promo">Своя лавка</a>
+    <a href="#how">Как играть</a>
+    <a href="profile.html">Мой профиль</a>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title">
+    <svg class="hero-route" viewBox="0 0 1440 560" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M-40 430c150 55 220 22 210-70s40-160 130-140"/>
+      <path d="M430 520c110-90 200-100 320-10s230 105 380 45 220-170 400-140"/>
+      <path class="route-accent" d="M1010 70c-18 62 24 122 100 160"/>
+    </svg>
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <span class="hero-kicker">Новый способ исследовать город</span>
+        <h1 class="hero-title" id="hero-title">Броди.<br>Выполняй.<br><em>Копи.</em></h1>
+        <p class="hero-lead">Исследуй городские места, закрывай задания и собирай <strong>бутсы</strong> — свою валюту впечатлений.</p>
+        <div class="hero-actions">
+          <a class="btn btn--primary" href="#map-section">На карту <svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn--ghost" href="#exchange">Куда потратить бутсы</a>
+        </div>
+      </div>
+      <div class="hero-aside">
+        <div class="balance-card">
+          <div class="balance-top">
+            <span class="balance-icon" aria-hidden="true"><svg><use href="#i-boot"/></svg></span>
+            <div>
+              <span class="balance-label">Твой баланс</span>
+              <b class="balance-value"><span id="hero-balance">0</span><span>бутс</span></b>
+            </div>
+          </div>
+          <a class="balance-link" href="#map-section">Заработать в городе <span aria-hidden="true">→</span></a>
+        </div>
+        <ul class="hero-facts">
+          <li><b id="hero-places">5</b><span>заданий</span></li>
+          <li><b id="hero-cities">4</b><span>города</span></li>
+          <li><b id="hero-reward">440</b><span>бутс в заданиях</span></li>
+        </ul>
+      </div>
+    </div>
   </section>
 
-  <section class="map-section section-shell" id="map-section">
-    <div class="section-heading">
-      <div><span class="eyebrow">ПРОГУЛКА С ПРИЗОМ</span><h2>Твой город —<br class="mobile-break"> твои правила</h2><p>Выбирай точку на карте, выполняй задание от места и забирай бутсы.</p></div>
-      <div class="heading-sticker"><svg><use href="#i-boot"/></svg><span>Иди<br>куда<br>интересно!</span></div>
+  <section class="map-section" id="map-section" aria-labelledby="map-title">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Прогулка с призом</span>
+        <h2 class="section-title" id="map-title">Твой город — твои правила</h2>
+      </div>
+      <p class="section-text">Выбери точку на карте, выполни задание от места и забери бутсы. Начни с того, что ближе.</p>
     </div>
+
     <div class="map-toolbar">
-      <label class="city-select"><span>ГОРОД</span><select id="city-select" aria-label="Выберите город"><option>Тольятти</option><option>Самара</option><option>Жигулёвск</option><option>Новокуйбышевск</option></select><span class="select-arrow">⌄</span></label>
-      <div class="category-wrap"><span class="control-caption">ВЫБЕРИ НАСТРОЕНИЕ</span><div id="category-filters" class="category-filters" aria-label="Фильтр мест"></div></div>
+      <label class="field">
+        <span class="field-label">Город</span>
+        <span class="select-wrap">
+          <select id="city-select">
+            <option>Тольятти</option>
+            <option>Самара</option>
+            <option>Жигулёвск</option>
+            <option>Новокуйбышевск</option>
+          </select>
+        </span>
+      </label>
+      <div class="chips-field">
+        <span class="field-label" id="filters-label">Настроение прогулки</span>
+        <div class="chips" id="category-filters" role="group" aria-labelledby="filters-label"></div>
+      </div>
     </div>
+
     <div class="map-layout">
-      <div class="map-card">
-        <div class="map-card-head"><div><span class="live-dot"></span><b>Точки рядом</b><small id="place-count">5 мест в Тольятти</small></div><a href="#task-panel" class="map-list-link">К заданиям <svg><use href="#i-arrow"/></svg></a></div>
-        <div class="city-map" id="city-map" role="region" aria-label="Схема карты: нажмите на метку, чтобы выбрать задание">
+      <div class="card map-card">
+        <div class="map-card-head">
+          <div class="map-card-title"><span class="live-dot" aria-hidden="true"></span> Точки рядом</div>
+          <span class="map-card-meta" id="place-count">5 мест в Тольятти</span>
+        </div>
+        <div class="city-map" id="city-map" role="group" aria-label="Схема карты: выберите метку, чтобы открыть задание">
           <svg class="map-drawing" viewBox="0 0 900 590" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <rect width="900" height="590" fill="#eeedf8"/><path d="M0 0h216l28 86-50 66L0 136Zm635 0h265v160l-127 12-107-56ZM0 388l160-62 115 29 39 235H0Zm644 70 256-53v185H600Z" fill="#dfdeed"/><path d="M55 61h129l28 49-44 48-125-33Zm603-16 131 4 47 63-56 43-127-52ZM74 416l115-45 67 52-33 112-146-3Zm535 104 117-75 92 38 38 109H611Z" fill="#dbe8dc" opacity=".78"/><path d="M0 532c152-18 245 21 330 58H0Z" fill="#d2e4f2"/>
-            <g fill="none" stroke="#fff" stroke-linecap="round"><path stroke-width="35" d="M-28 250c151-20 246-87 387-62 111 20 218 133 353 102s144-80 230-79"/><path stroke-width="25" d="M250-25c18 144 88 218 154 320s81 153 95 320"/><path stroke-width="22" d="M-30 443c141-81 255-99 401-42s257 111 565 40"/><path stroke-width="19" d="M669-30c-37 113-18 217-78 315s-103 162-70 325"/><path stroke-width="16" d="M-30 110c181 49 266 45 390 14s295-62 569-27"/><path stroke-width="14" d="M48-10c53 144 66 240 42 353s2 168 44 273M823-5c-45 160-23 238 2 337s20 175-18 279"/></g>
-            <g fill="none" stroke="#d2d0e3" stroke-width="2"><path d="M-28 250c151-20 246-87 387-62 111 20 218 133 353 102s144-80 230-79"/><path d="M250-25c18 144 88 218 154 320s81 153 95 320"/><path d="M-30 443c141-81 255-99 401-42s257 111 565 40"/><path d="M669-30c-37 113-18 217-78 315s-103 162-70 325"/></g>
-            <g fill="#a09eb4" font-family="Arial,sans-serif" font-size="13" letter-spacing="1.5"><text x="65" y="199">ТИХИЕ УЛИЦЫ</text><text x="580" y="191">НОВЫЕ МЕСТА</text><text x="256" y="369">ТВОЙ ГОРОД</text><text x="667" y="502">ДОРОГА ЗА ВПЕЧАТЛЕНИЯМИ</text></g>
+            <rect width="900" height="590" fill="#eeedf8"/>
+            <path d="M0 0h216l28 86-50 66L0 136Zm635 0h265v160l-127 12-107-56ZM0 388l160-62 115 29 39 235H0Zm644 70 256-53v185H600Z" fill="#e4e3f0"/>
+            <path d="M55 61h129l28 49-44 48-125-33Zm603-16 131 4 47 63-56 43-127-52ZM74 416l115-45 67 52-33 112-146-3Zm535 104 117-75 92 38 38 109H611Z" fill="#f0efff"/>
+            <path d="M0 532c152-18 245 21 330 58H0Z" fill="#aeaef6" opacity=".28"/>
+            <g fill="none" stroke="#ffffff" stroke-linecap="round">
+              <path stroke-width="34" d="M-28 250c151-20 246-87 387-62 111 20 218 133 353 102s144-80 230-79"/>
+              <path stroke-width="24" d="M250-25c18 144 88 218 154 320s81 153 95 320"/>
+              <path stroke-width="22" d="M-30 443c141-81 255-99 401-42s257 111 565 40"/>
+              <path stroke-width="18" d="M669-30c-37 113-18 217-78 315s-103 162-70 325"/>
+              <path stroke-width="15" d="M-30 110c181 49 266 45 390 14s295-62 569-27"/>
+            </g>
+            <g fill="none" stroke="#dcdaf2" stroke-width="2">
+              <path d="M-28 250c151-20 246-87 387-62 111 20 218 133 353 102s144-80 230-79"/>
+              <path d="M250-25c18 144 88 218 154 320s81 153 95 320"/>
+              <path d="M-30 443c141-81 255-99 401-42s257 111 565 40"/>
+            </g>
+            <g class="map-label">
+              <text x="65" y="199">ТИХИЕ УЛИЦЫ</text>
+              <text x="580" y="191">НОВЫЕ МЕСТА</text>
+              <text x="256" y="369">ТВОЙ ГОРОД</text>
+              <text x="640" y="502">ДОРОГА ЗА ВПЕЧАТЛЕНИЯМИ</text>
+            </g>
             <path d="M175 295c92-26 133 33 214 31s73-116 178-97 55 142 156 106" class="route-path"/>
           </svg>
           <div id="map-markers" class="map-markers"></div>
-          <div id="map-empty" class="map-empty" hidden><div class="empty-boot"><svg><use href="#i-pin"/></svg></div><b>Пока тут тихо</b><p>В этом городе заданий ещё нет.<br>Загляни в Тольятти — там есть точки.</p><button id="back-to-city">Выбрать Тольятти</button></div>
-          <div class="map-note"><span>ⓘ</span> Демонстрационная схема · расположение меток условное</div>
-          <span class="map-coordinate">ХОДИ БРОДИ · 01</span>
+          <div id="map-empty" class="map-empty" hidden>
+            <span class="map-empty-icon" aria-hidden="true"><svg><use href="#i-pin"/></svg></span>
+            <b>Пока тут тихо</b>
+            <p>В этом городе заданий ещё нет. Загляни в Тольятти — там есть точки.</p>
+            <button id="back-to-city" class="btn btn--sm btn--purple" type="button">Выбрать Тольятти</button>
+          </div>
+          <div class="map-note"><svg aria-hidden="true"><use href="#i-info"/></svg> Демонстрационная схема · метки условны</div>
         </div>
-        <div class="map-legend"><span><i class="legend-pin"></i> Место с заданием</span><span><i class="legend-route"></i> Маршрут для вдохновения</span><span class="legend-mobile-note">Не GPS-маршрут</span></div>
+        <div class="map-legend">
+          <span><i class="legend-pin" aria-hidden="true"></i> Место с заданием</span>
+          <span><i class="legend-route" aria-hidden="true"></i> Маршрут для вдохновения</span>
+          <span><i class="legend-done" aria-hidden="true"></i> Выполнено</span>
+        </div>
       </div>
-      <aside class="task-panel" id="task-panel">
-        <div class="task-panel-head"><div><span class="panel-label">НАЧНИ С ЛЮБОЙ ТОЧКИ</span><h3>Задания в городе</h3></div><span class="task-count" id="task-count">5</span></div>
+
+      <aside class="card task-panel" id="task-panel" aria-labelledby="task-panel-title">
+        <div class="task-panel-head">
+          <div>
+            <span class="panel-label">Начни с любой точки</span>
+            <h3 id="task-panel-title">Задания в городе</h3>
+          </div>
+          <span class="task-count" id="task-count">5</span>
+        </div>
         <p class="task-panel-intro">Выбери точку, чтобы узнать о задании.</p>
         <div class="task-list" id="task-list"></div>
         <div class="task-detail" id="task-detail" hidden></div>
-        <div class="task-panel-foot"><svg><use href="#i-spark"/></svg><span>Бутсы начисляются за выполненное задание</span></div>
+        <div class="task-panel-foot"><svg aria-hidden="true"><use href="#i-spark"/></svg> Бутсы начисляются за выполненное задание</div>
       </aside>
     </div>
-    <div class="honesty-note"><span>i</span><p><b>Демо-концепт.</b> Задания и награды — примеры механики, партнёрства с местами не подтверждены. Отметка о выполнении здесь ручная: геолокация и проверка посещения не подключены.</p><button id="reset-demo" class="reset-demo" type="button">Сбросить демо</button></div>
-  </section>
 
-  <section class="collections-section" id="collections" aria-labelledby="collections-title"><div class="container"><div class="collections-heading"><div><span class="collections-kicker"><span></span> ИДЕИ ДЛЯ ГОРОДА</span><h2 id="collections-title">Найди своё<br><em>настроение.</em></h2></div><p>Не знаешь, с чего начать? Мы собрали места и задания в небольшие тематические подборки.</p></div><div id="collections-app" class="collections-app"></div><p class="collections-caption">Подборки объединяют существующие демо-задания. Награда начисляется за каждое задание отдельно; дополнительный бонус за подборку не предусмотрен.</p></div></section>
-
-  <section class="exchange-section" id="exchange">
-    <div class="container exchange-inner">
-      <div class="exchange-top"><div><span class="eyebrow eyebrow-light">ЗАРАБОТАННОЕ — НА ВПЕЧАТЛЕНИЯ</span><h2>Бутсы любят<br>движение<span>.</span></h2><p>Копи свою валюту в городе и меняй на скидку к билету.</p></div><div class="exchange-balance"><svg><use href="#i-boot"/></svg><small>СЕЙЧАС У ТЕБЯ</small><b><span id="exchange-balance">0</span> <i>бутс</i></b><a href="#map-section">Заработать ещё ↗</a></div></div>
-      <div class="offer-heading"><h3>Обменять на билет</h3><span>Условия на экране — демонстрационные</span></div>
-      <div id="offer-grid" class="offer-grid"></div>
-      <p class="exchange-disclaimer">Обмен и скидки показаны как идея продукта. Реальные билеты, цены, скидки и промокоды пока не подключены.</p>
+    <div class="demo-note">
+      <span class="demo-note-icon" aria-hidden="true">i</span>
+      <p><b>Демо-концепт.</b> Задания и награды — пример механики, партнёрства с местами не подтверждены. Отметка о выполнении ручная: геолокация и проверка посещения не подключены.</p>
+      <button id="reset-demo" class="reset-demo" type="button">Сбросить демо</button>
     </div>
   </section>
 
-  <section class="shop-promo container"><div><span class="eyebrow">СВОЯ ЛАВКА</span><h2>Твои бутсы —<br>твой мерч<span>.</span></h2><p>Загляни в профиль: там ждут вещи, которые можно обменять на накопленные бутсы.</p><a class="shop-promo-link" href="profile.html#shop">Открыть свою лавку ↗</a></div><div class="shop-promo-art"><svg><use href="#i-boot"/></svg><span>БРОДИ<br>СВОЁ</span></div></section>
+  <section class="collections-section" id="collections" aria-labelledby="collections-title">
+    <div class="container">
+      <div class="collections-heading">
+        <div>
+          <span class="collections-kicker">Идеи для города</span>
+          <h2 id="collections-title">Найди своё<br><em>настроение.</em></h2>
+        </div>
+        <p class="section-text">Не знаешь, с чего начать? Мы собрали места и задания в небольшие тематические подборки.</p>
+      </div>
+      <div id="collections-app" class="collections-app"></div>
+      <p class="collections-caption">Подборки объединяют существующие демо-задания. Награда начисляется за каждое задание отдельно; дополнительный бонус за подборку не предусмотрен.</p>
+    </div>
+  </section>
 
-  <section class="how-section" id="how"><div class="container how-editorial"><div class="how-intro"><span class="how-kicker">ВСЁ ПРОСТО / 01—03</span><h2>Город ближе,<br>чем кажется<span>.</span></h2><p>Маленькое приключение начинается с одного места.</p><a href="#map-section">Начать исследовать <span>↗</span></a></div><div class="how-story"><div class="how-track" aria-hidden="true"></div><div class="how-step"><span class="how-number">01</span><div><h3>Выбери точку</h3><p>Открой карту и найди место, которое тебе интересно.</p></div><span class="how-symbol">↗</span></div><div class="how-step"><span class="how-number">02</span><div><h3>Выполни задание</h3><p>Побывай в месте и самостоятельно отметь выполнение.</p></div><span class="how-symbol">✓</span></div><div class="how-step"><span class="how-number">03</span><div><h3>Копи бутсы</h3><p>Загляни в профиль: там можно обменять их на демо-награды.</p></div><span class="how-symbol">✳</span></div><small>Баланс сохраняется только в этом браузере.</small></div></div></section>
+  <section class="exchange-section" id="exchange" aria-labelledby="exchange-title">
+    <div class="container">
+      <div class="exchange-top">
+        <div>
+          <span class="eyebrow eyebrow--ghost">Заработанное — на впечатления</span>
+          <h2 class="exchange-title" id="exchange-title">Бутсы любят<br>движение<span>.</span></h2>
+          <p class="section-text section-text--light">Копи свою валюту в городе и меняй на скидку к билету.</p>
+        </div>
+        <div class="exchange-balance">
+          <div class="exchange-balance-head">
+            <svg aria-hidden="true"><use href="#i-boot"/></svg>
+            <div>
+              <small>Сейчас у тебя</small>
+              <b><span id="exchange-balance">0</span> <i>бутс</i></b>
+            </div>
+          </div>
+          <a href="#map-section">Заработать ещё →</a>
+        </div>
+      </div>
+      <div class="offer-heading">
+        <h3>Обменять на билет</h3>
+        <span>Условия на экране — демонстрационные</span>
+      </div>
+      <div id="offer-grid" class="offer-grid"></div>
+      <p class="exchange-note">Обмен и скидки показаны как идея продукта. Реальные билеты, цены, скидки и промокоды пока не подключены.</p>
+    </div>
+  </section>
+
+  <section class="shop-promo" id="shop-promo" aria-labelledby="shop-promo-title">
+    <div>
+      <span class="eyebrow eyebrow--light">Своя лавка</span>
+      <h2 id="shop-promo-title">Твои бутсы —<br>твой мерч<span>.</span></h2>
+      <p>Загляни в профиль: там ждут вещи, которые можно обменять на накопленные бутсы.</p>
+      <a class="btn btn--dark" href="profile.html#shop">Открыть свою лавку <svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="shop-promo-art" aria-hidden="true">
+      <svg><use href="#i-boot"/></svg>
+      <span>БРОДИ<br>СВОЁ</span>
+    </div>
+  </section>
+
+  <section class="how-section" id="how" aria-labelledby="how-title">
+    <div class="container">
+      <div class="how-panel">
+        <div class="how-intro">
+          <span class="how-kicker">Всё просто / 01—03</span>
+          <h2 id="how-title">Город ближе,<br>чем кажется<span>.</span></h2>
+          <p>Маленькое приключение начинается с одного места.</p>
+          <a class="link-arrow" href="#map-section">Начать исследовать <span aria-hidden="true">↗</span></a>
+        </div>
+        <ol class="how-steps">
+          <li class="how-step">
+            <span class="how-number" aria-hidden="true">01</span>
+            <div>
+              <h3>Выбери точку</h3>
+              <p>Открой карту и найди место, которое тебе интересно.</p>
+            </div>
+            <span class="how-symbol" aria-hidden="true">↗</span>
+          </li>
+          <li class="how-step">
+            <span class="how-number" aria-hidden="true">02</span>
+            <div>
+              <h3>Выполни задание</h3>
+              <p>Побывай в месте и самостоятельно отметь выполнение.</p>
+            </div>
+            <span class="how-symbol" aria-hidden="true">✓</span>
+          </li>
+          <li class="how-step">
+            <span class="how-number" aria-hidden="true">03</span>
+            <div>
+              <h3>Копи бутсы</h3>
+              <p>Загляни в профиль: там можно обменять их на демо-награды.</p>
+            </div>
+            <span class="how-symbol" aria-hidden="true">✳</span>
+          </li>
+        </ol>
+      </div>
+      <p class="how-note">Баланс сохраняется только в этом браузере.</p>
+    </div>
+  </section>
 </main>
-<footer class="site-footer"><div class="container footer-inner"><a class="brand footer-brand" href="https://hodi-brodi.ru/"><img src="assets/logo.svg" alt="Ходи Броди"></a><div class="footer-copy"><b>Броди по городу</b><span>Исследуй больше. Копи впечатления.</span></div><div class="footer-note"><a href="https://hodi-brodi.ru/" target="_blank" rel="noopener noreferrer">Ходи Броди ↗</a><span>Концепт страницы · не официальный сервис обмена</span></div></div></footer>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <a class="brand footer-brand" href="https://hodi-brodi.ru/">
+      <img src="assets/logo.svg" alt="Ходи Броди">
+      <span class="brand-word" aria-hidden="true">Ходи Броди</span>
+    </a>
+    <div class="footer-copy">
+      <b>Броди по городу</b>
+      <span>Исследуй больше. Копи впечатления.</span>
+    </div>
+    <div class="footer-note">
+      <a href="https://hodi-brodi.ru/" target="_blank" rel="noopener noreferrer">Ходи Броди ↗</a>
+      <span>Концепт страницы · не официальный сервис обмена</span>
+    </div>
+  </div>
+</footer>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="data.js?v=20261122-4"></script><script src="app.js?v=20261122-4"></script>
+<script src="data.js?v=20261122-redesign"></script>
+<script src="app.js?v=20261122-redesign"></script>
 </body>
 </html>
