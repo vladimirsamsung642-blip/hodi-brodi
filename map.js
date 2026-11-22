@@ -120,9 +120,20 @@ function ensureMap() {
     return null;
   }
 
+  /* Если ключ отклонён, колбэк ready() не вызывается вообще — карта
+     зависала на «Загружаем карту…». Поэтому страхуемся таймаутом. */
+  let started = false;
+  const startGuard = setTimeout(() => {
+    if (started) return;
+    mapState.failed = true;
+    showKeyNotice();
+  }, 8000);
+
   window.ymaps.ready(() => {
     const node = document.getElementById('yandex-map');
     if (!node) return;
+    started = true;
+    clearTimeout(startGuard);
 
     const view = CITY_VIEW[getState().city] || CITY_VIEW['Тольятти'];
     mapState.map = new window.ymaps.Map(node, {
