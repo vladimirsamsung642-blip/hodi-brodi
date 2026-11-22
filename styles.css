@@ -1762,6 +1762,7 @@ svg {
 
 .collection-progress-meta {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
   margin-top: 8px;
@@ -2013,9 +2014,10 @@ svg {
 
 .offer-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
+  gap: 6px 16px;
   margin: 40px 0 16px;
 }
 
