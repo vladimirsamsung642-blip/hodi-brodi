@@ -8,7 +8,9 @@
 const places = window.BRODI_PLACES || [];
 const events = window.BRODI_EVENTS || [];
 const eventMeta = window.BRODI_EVENT_META || { cities: [], categories: [] };
-const categories = ['Все места', 'Еда', 'Развлечения', 'С детьми', 'Активный отдых'];
+/* Категории мест берём из данных: захардкоженный список разошёлся бы
+   с реальными категориями сайта. */
+const categories = ['Все места', ...new Set(places.map(place => place.category))];
 const offers = [
   { id: 'ticket5', title: '−5% на билет', tag: 'Первое обменное предложение', description: 'Небольшой бонус на следующее городское событие.', cost: 160, feature: false },
   { id: 'ticket10', title: '−10% на билет', tag: 'Для тех, кто много бродит', description: 'Собери больше бутс — получи больше выгоды.', cost: 300, feature: true }
@@ -279,8 +281,14 @@ function eventCard(event) {
   const start = new Date(event.start);
   const saved = afisha.saved.includes(event.id);
   const dateBlock = `<span class="ev-date" aria-hidden="true"><b>${start.getDate()}</b><span>${SHORT_MONTHS[start.getMonth()]}</span></span>`;
+  const hasCoords = Array.isArray(event.coords) && event.coords.length === 2;
   return `
     <article class="ev-card" data-event="${esc(event.id)}">
+      <div class="ev-media" data-initial="${esc(initialOf({ name: event.title }))}">
+        <img src="${esc(event.image || '')}" alt="${esc(event.title)}" loading="lazy" decoding="async"
+             referrerpolicy="no-referrer" data-fallback>
+        ${event.editorPick ? '<span class="ev-media-pick">Выбор редакции</span>' : ''}
+      </div>
       <div class="ev-card-top">
         ${dateBlock}
         <span class="ev-cat">${esc(event.category)}</span>
@@ -299,6 +307,9 @@ function eventCard(event) {
         <span class="ev-price${event.price === 0 ? ' is-free' : ''}">${priceLabel(event)}</span>
         <span class="ev-going"><svg aria-hidden="true"><use href="#i-family"/></svg> ${event.going} идут</span>
         <div class="ev-actions">
+          ${hasCoords ? `<button type="button" class="ev-map" data-show-map="${esc(event.id)}" aria-label="Показать «${esc(event.title)}» на карте">
+            <svg aria-hidden="true"><use href="#i-pin"/></svg> На карте
+          </button>` : ''}
           <span class="ev-cta${event.price === 0 ? ' is-free' : ''}">${event.price === 0 ? 'Вход свободный' : 'Купить билет ↗'}</span>
           <button type="button" class="ev-cal" data-calendar="${esc(event.id)}" aria-label="Добавить в календарь">
             <svg aria-hidden="true"><use href="#i-calendar"/></svg>
@@ -324,7 +335,9 @@ function renderEventsFeature(list) {
   box.hidden = false;
   box.innerHTML = `
     <article class="feature-ev" data-media>
-      <div class="feature-ev-media">
+      <div class="feature-ev-media" data-initial="${esc(initialOf({ name: featured.title }))}">
+        <img class="feature-ev-photo" src="${esc(featured.image || '')}" alt="${esc(featured.title)}"
+             loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback>
         <div class="feature-ev-wash" aria-hidden="true"></div>
         <span class="feature-ev-flag">${featured.editorPick ? 'Выбор редакции' : 'Ближайшее'}</span>
         <div class="feature-ev-title">
@@ -437,6 +450,12 @@ function searchResults(query) {
     const haystack = normalize(text);
     return tokens.every(token => haystack.includes(token));
   };
+  /* Токены проверяем по объединённому тексту всех полей, а не по каждому
+     отдельно: иначе «любэ автоград» (название + площадка) не находилось. */
+  const matchesAnywhere = fields => {
+    const haystack = normalize(fields.filter(Boolean).join(' '));
+    return tokens.every(token => haystack.includes(token));
+  };
   const eventHits = events
     .map(event => ({
       type: 'event',
@@ -445,7 +464,9 @@ function searchResults(query) {
       meta: `${event.category} · ${event.venue} · ${dayLabel(new Date(event.start))}`,
       score: (matches(event.title) ? 4 : 0) + (matches(event.venue) ? 3 : 0) + (matches(event.category) ? 2 : 0) + (matches(event.city) ? 1 : 0)
     }))
-    .filter(hit => hit.score > 0 || matches(hit.item.description))
+    .filter(hit => hit.score > 0 || matchesAnywhere([
+      hit.item.title, hit.item.venue, hit.item.address, hit.item.category, hit.item.city, hit.item.description
+    ]))
     .sort((a, b) => b.score - a.score);
 
   const placeHits = places
@@ -629,22 +650,6 @@ function renderMapAndTasks() {
     : `Нет заданий · ${state.city}`;
   $('#task-count').textContent = shown.length;
 
-  $('#map-markers').innerHTML = shown.map((place, index) => {
-    const selected = state.selected === place.id;
-    const done = state.done.includes(place.id);
-    return `
-      <button type="button"
-              class="map-marker${done ? ' is-done' : ''}"
-              style="left:${Number(place.x)}%;top:${Number(place.y)}%"
-              data-select="${esc(place.id)}"
-              aria-pressed="${selected}"
-              aria-label="${esc(place.name)}: ${done ? 'задание выполнено' : `награда ${place.reward} бутс`}">
-        ${icon('pin')}
-        <b aria-hidden="true">${index + 1}</b>
-        <span class="marker-reward" aria-hidden="true">+${place.reward}</span>
-      </button>`;
-  }).join('');
-
   const empty = $('#map-empty');
   if (cityPlaces.length === 0) {
     empty.hidden = false;
@@ -668,7 +673,8 @@ function renderMapAndTasks() {
               aria-pressed="${selected}"
               aria-label="${esc(place.name)}: ${done ? 'задание выполнено' : `награда ${place.reward} бутс`}">
         <span class="task-thumb" data-initial="${initialOf(place)}" aria-hidden="true">
-          <img src="${esc(place.image)}" alt="" loading="lazy" decoding="async" data-fallback>
+          <img src="${esc(place.image)}" alt="" loading="lazy" decoding="async"
+               referrerpolicy="no-referrer" data-fallback>
         </span>
         <span class="task-row-copy">
           <b>${esc(place.name)}</b>
@@ -681,6 +687,9 @@ function renderMapAndTasks() {
 
   renderTaskDetail();
   bindImageFallbacks($('#task-list'));
+
+  /* Карта живёт отдельно от DOM-списка: обновляем метки тем же фильтром. */
+  if (window.BrodiMap) window.BrodiMap.renderPoints();
 }
 
 function renderTaskDetail() {
@@ -915,10 +924,32 @@ document.addEventListener('click', event => {
     return;
   }
 
+  const showOnMap = event.target.closest('[data-show-map]');
+  if (showOnMap) {
+    const id = showOnMap.dataset.showMap;
+    const eventItem = events.find(item => item.id === id);
+    if (eventItem && window.BrodiMap) {
+      /* Если событие в другом городе — карта сама переключит город. */
+      if (eventItem.city !== state.city) {
+        state.city = eventItem.city;
+        state.selected = null;
+        render();
+      }
+      const ok = window.BrodiMap.focus(`event:${id}`);
+      document.getElementById('map-section')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'center'
+      });
+      if (!ok) toast('Карта загружается — метка откроется сама');
+    }
+    return;
+  }
+
   const select = event.target.closest('[data-select]');
   if (select) {
     state.selected = select.dataset.select;
     renderMapAndTasks();
+    if (window.BrodiMap) window.BrodiMap.focus(`place:${state.selected}`);
     if (window.matchMedia('(max-width: 980px)').matches) {
       $('#task-list').scrollIntoView({
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
@@ -1173,6 +1204,7 @@ $('#city-select').addEventListener('change', event => {
   state.category = 'Все места';
   state.selected = null;
   render();
+  if (window.BrodiMap) window.BrodiMap.moveToCity(state.city);
 });
 
 const requestedPlace = new URLSearchParams(location.search).get('place');
@@ -1199,3 +1231,25 @@ window.addEventListener('storage', event => {
 });
 
 render();
+
+/* Карта ---------------------------------------------------------------- */
+
+/* map.js — отдельный файл, поэтому общие хелперы отдаём явно.
+   Без этого в балунах падало «esc is not defined». */
+window.BrodiShared = {
+  esc, dayLabel, timeOf, priceLabel, initialOf, plural,
+  /* map.js строит точки и читает текущий город/фильтр — отдаём доступ
+     через геттеры, чтобы модуль видел актуальное состояние. */
+  get state() { return state; },
+  get places() { return places; },
+  get events() { return events; }
+};
+
+
+/* API грузится асинхронно, поэтому пробуем после того, как страница
+   готова: к этому моменту ymaps либо уже есть, либо появится позже. */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => window.BrodiMap?.boot(), { once: true });
+} else {
+  window.BrodiMap?.boot();
+}

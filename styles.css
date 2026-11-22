@@ -3961,3 +3961,285 @@ svg {
     transform: none;
   }
 }
+
+/* ── Реальные фото и Яндекс.Карты ──────────────────────────────────────── */
+
+/* Фото события в карточке. Контейнер держит пропорции и служит фоном
+   для фолбэка, поэтому вёрстка не прыгает, если картинка не пришла. */
+.ev-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  margin: -18px -18px 16px;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--purple-ink), var(--purple));
+}
+
+.ev-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--speed) var(--ease);
+}
+
+.ev-card:hover .ev-media img {
+  transform: scale(1.03);
+}
+
+/* Фолбэк: монограмма на брендовом градиенте + подпись. */
+.ev-media.is-empty img,
+.ev-media img.is-broken {
+  display: none;
+}
+
+.ev-media.is-empty::after,
+.ev-media img.is-broken + .ev-media-fallback {
+  content: attr(data-initial);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--white);
+  background:
+    radial-gradient(circle at 72% 18%, rgba(237, 232, 0, 0.28), transparent 55%),
+    linear-gradient(135deg, var(--purple-ink), var(--purple));
+}
+
+.ev-media-pick {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Кнопка «На карте» в подвале карточки. */
+.ev-map {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--purple-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--speed) linear, background var(--speed) linear;
+}
+
+.ev-map svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ev-map:hover {
+  border-color: var(--purple-light);
+  background: var(--pale);
+}
+
+/* Фото в «Выборе редакции» — фоном под текстом. */
+.feature-ev-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.42;
+}
+
+.feature-ev-media.is-empty .feature-ev-photo {
+  display: none;
+}
+
+/* Балун Яндекс.Карт. */
+.ym-balloon {
+  width: 268px;
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.ym-balloon-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(135deg, var(--purple-ink), var(--purple));
+}
+
+.ym-balloon-photo.is-broken {
+  display: none;
+}
+
+.ym-balloon-body {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px 12px;
+}
+
+.ym-balloon-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--purple-text);
+}
+
+.ym-balloon-title {
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.ym-balloon-when,
+.ym-balloon-addr,
+.ym-balloon-price {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.ym-balloon-price {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ym-balloon-link {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--purple-text);
+  text-decoration: none;
+}
+
+.ym-balloon-link:hover {
+  text-decoration: underline;
+}
+
+/* Контейнер карты и состояния загрузки. */
+.yandex-map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--pale);
+}
+
+.map-loading.is-error {
+  color: var(--ink);
+}
+
+.map-loading.is-error b {
+  font-size: 15px;
+}
+
+.map-loading-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--purple);
+  animation: map-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes map-pulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.5; }
+  50%      { transform: scale(1);   opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-loading-dot { animation: none; }
+  .ev-card:hover .ev-media img { transform: none; }
+}
+
+/* Заглушка, если ключ Яндекс.Карт не подходит для текущего домена. */
+.map-key-notice {
+  display: grid;
+  gap: 10px;
+  max-width: 460px;
+  text-align: left;
+}
+
+.map-key-notice b {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.map-key-notice p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.map-key-notice code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.map-key-list {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-key-list a {
+  display: grid;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--purple-text);
+  text-decoration: none;
+  transition: border-color var(--speed) linear, background var(--speed) linear;
+}
+
+.map-key-list a:hover {
+  border-color: var(--purple-light);
+  background: var(--pale);
+}
+
+.map-key-list a span {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.map-key-hint {
+  font-size: 12px !important;
+}

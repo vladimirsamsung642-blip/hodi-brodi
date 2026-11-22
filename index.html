@@ -205,40 +205,20 @@
           <div class="map-card-title"><span class="live-dot" aria-hidden="true"></span> Точки рядом</div>
           <span class="map-card-meta" id="place-count">5 мест в Тольятти</span>
         </div>
-        <div class="city-map" id="city-map" role="group" aria-label="Схема карты: выберите метку, чтобы открыть задание">
-          <svg class="map-drawing" viewBox="0 0 900 590" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <rect width="900" height="590" fill="#eeedf8"/>
-            <path d="M0 0h216l28 86-50 66L0 136Zm635 0h265v160l-127 12-107-56ZM0 388l160-62 115 29 39 235H0Zm644 70 256-53v185H600Z" fill="#e4e3f0"/>
-            <path d="M55 61h129l28 49-44 48-125-33Zm603-16 131 4 47 63-56 43-127-52ZM74 416l115-45 67 52-33 112-146-3Zm535 104 117-75 92 38 38 109H611Z" fill="#f0efff"/>
-            <path d="M0 532c152-18 245 21 330 58H0Z" fill="#aeaef6" opacity=".28"/>
-            <g fill="none" stroke="#ffffff" stroke-linecap="round">
-              <path stroke-width="34" d="M-28 250c151-20 246-87 387-62 111 20 218 133 353 102s144-80 230-79"/>
-              <path stroke-width="24" d="M250-25c18 144 88 218 154 320s81 153 95 320"/>
-              <path stroke-width="22" d="M-30 443c141-81 255-99 401-42s257 111 565 40"/>
-              <path stroke-width="18" d="M669-30c-37 113-18 217-78 315s-103 162-70 325"/>
-              <path stroke-width="15" d="M-30 110c181 49 266 45 390 14s295-62 569-27"/>
-            </g>
-            <g fill="none" stroke="#dcdaf2" stroke-width="2">
-              <path d="M-28 250c151-20 246-87 387-62 111 20 218 133 353 102s144-80 230-79"/>
-              <path d="M250-25c18 144 88 218 154 320s81 153 95 320"/>
-              <path d="M-30 443c141-81 255-99 401-42s257 111 565 40"/>
-            </g>
-            <g class="map-label">
-              <text x="65" y="199">ТИХИЕ УЛИЦЫ</text>
-              <text x="580" y="191">НОВЫЕ МЕСТА</text>
-              <text x="256" y="369">ТВОЙ ГОРОД</text>
-              <text x="640" y="502">ДОРОГА ЗА ВПЕЧАТЛЕНИЯМИ</text>
-            </g>
-            <path d="M175 295c92-26 133 33 214 31s73-116 178-97 55 142 156 106" class="route-path"/>
-          </svg>
-          <div id="map-markers" class="map-markers"></div>
+        <div class="city-map" id="city-map">
+          <div id="yandex-map" class="yandex-map" role="application"
+               aria-label="Карта города: выберите метку, чтобы открыть информацию о месте"></div>
+          <div class="map-loading" id="map-loading">
+            <span class="map-loading-dot" aria-hidden="true"></span>
+            Загружаем карту…
+          </div>
           <div id="map-empty" class="map-empty" hidden>
             <span class="map-empty-icon" aria-hidden="true"><svg><use href="#i-pin"/></svg></span>
             <b>Пока тут тихо</b>
-            <p>В этом городе заданий ещё нет. Загляни в Тольятти — там есть точки.</p>
+            <p>В этом городе точек ещё нет. Загляни в Тольятти — там есть места.</p>
             <button id="back-to-city" class="btn btn--sm btn--purple" type="button">Выбрать Тольятти</button>
           </div>
-          <div class="map-note"><svg aria-hidden="true"><use href="#i-info"/></svg> Демонстрационная схема · метки условны</div>
+          <div class="map-note"><svg aria-hidden="true"><use href="#i-info"/></svg> Яндекс.Карты · данные hodi-brodi.ru</div>
         </div>
         <div class="map-legend">
           <span><i class="legend-pin" aria-hidden="true"></i> Место с заданием</span>
@@ -383,7 +363,11 @@
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="data.js?v=20261122-assets"></script>
-<script src="app.js?v=20261122-assets"></script>
+<script src="eventsData.js?v=20261122-real"></script>
+<script src="data.js?v=20261122-real"></script>
+<script src="app.js?v=20261122-real"></script>
+<script src="map.js?v=20261122-real"></script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=ac0dd8aa-6124-4239-89b1-31db39165c0a&lang=ru_RU&load=package.standard"
+        async onerror="window.__ymapsFailed = true"></script>
 </body>
 </html>
