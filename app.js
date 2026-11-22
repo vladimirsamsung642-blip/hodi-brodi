@@ -1246,10 +1246,12 @@ window.BrodiShared = {
 };
 
 
-/* API грузится асинхронно, поэтому пробуем после того, как страница
-   готова: к этому моменту ymaps либо уже есть, либо появится позже. */
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => window.BrodiMap?.boot(), { once: true });
+/* map.js подключается ПОСЛЕ app.js, поэтому на момент выполнения этого
+   файла window.BrodiMap ещё нет — вызывать boot() здесь нельзя (раньше
+   из-за этого карта навсегда оставалась на «Загружаем карту…»).
+   Стартуем по событию brodi:map-ready, которое map.js шлёт в конце. */
+if (window.BrodiMap) {
+  window.BrodiMap.boot();
 } else {
-  window.BrodiMap?.boot();
+  window.addEventListener('brodi:map-ready', () => window.BrodiMap.boot(), { once: true });
 }

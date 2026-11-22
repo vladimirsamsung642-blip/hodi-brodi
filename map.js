@@ -367,3 +367,7 @@ window.BrodiMap = {
   moveToCity: moveMapToCity,
   isReady: () => mapState.ready
 };
+
+/* map.js грузится после app.js, поэтому сообщаем, что модуль готов.
+   app.js ждёт это событие и только потом зовёт boot(). */
+window.dispatchEvent(new Event('brodi:map-ready'));
