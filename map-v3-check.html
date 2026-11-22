@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка карты v3 — Ходи Броди</title>
+  <style>
+    :root { --ink:#111113; --muted:#545372; --pale:#f0efff; --line:#e4e3f0; --white:#fff; --purple-ink:#5959b9; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:20px; background:#f5f5f5; color:var(--ink);
+           font:400 15px/1.55 Inter,system-ui,Arial,sans-serif; }
+    main { max-width:760px; margin:0 auto; }
+    h1 { font-size:22px; font-weight:900; margin:0 0 12px; }
+    .card { background:var(--white); border:1px solid var(--line); border-radius:12px;
+            padding:14px; margin-bottom:12px; }
+    pre { margin:0; padding:10px; border-radius:8px; background:var(--pale);
+          font:500 12.5px/1.6 ui-monospace,Menlo,monospace; white-space:pre-wrap; word-break:break-word; }
+    .ok { color:#146b14; font-weight:800; }
+    .bad { color:#8f1d1d; font-weight:800; }
+    .box { position:relative; height:280px; border-radius:10px; overflow:hidden; background:var(--pale); }
+    #yandex-map { position:absolute; inset:0; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Проверка карты v3 на этом домене</h1>
+  <div class="card"><pre id="log">запуск…</pre></div>
+  <div class="card"><div class="box"><div id="yandex-map"></div></div></div>
+</main>
+
+<script>
+/* Проверяем то, что нельзя увидеть в canvas: поднялся ли API v3,
+   создалась ли карта, добавились ли слои и метки. Всё пишем текстом. */
+var out = [];
+function log(m) {
+  out.push(m);
+  document.getElementById('log').textContent = out.join('\n');
+}
+
+window.addEventListener('load', function () {
+  log('host=' + location.hostname);
+  log('ymaps3=' + (typeof window.ymaps3));
+  log('v2 ymaps=' + (typeof window.ymaps));
+
+  if (!window.ymaps3) { log('ИТОГ: API v3 не загрузился'); document.title='CHECK: NO V3'; return; }
+
+  var t0 = Date.now();
+  window.ymaps3.ready.then(function () {
+    log('ready разрешён за ' + (Date.now() - t0) + ' мс');
+    try {
+      var y = window.ymaps3;
+      var map = new y.YMap(document.getElementById('yandex-map'), {
+        location: { center: [49.3181, 53.5135], zoom: 12 }
+      });
+      log('YMap создан');
+      map.addChild(new y.YMapDefaultSchemeLayer({ theme: 'light' }));
+      log('слой схемы добавлен');
+      map.addChild(new y.YMapFeatureDataSource({ id: 'brodi-source' }));
+      map.addChild(new y.YMapLayer({ source: 'brodi-source', type: 'markers', zIndex: 1800 }));
+      log('слои маркеров добавлены');
+
+      var el = document.createElement('div');
+      el.style.cssText = 'width:20px;height:20px;border-radius:50%;background:#5959b9;border:2px solid #fff';
+      map.addChild(new y.YMapMarker({ coordinates: [49.3197, 53.5034], source: 'brodi-source' }, el));
+      log('метка добавлена');
+
+      setTimeout(function () {
+        var kids = (map.children || []).length;
+        log('детей у карты: ' + kids);
+        log('canvas/div внутри контейнера: ' + document.getElementById('yandex-map').querySelectorAll('*').length);
+        log('ИТОГ: КАРТА v3 РАБОТАЕТ');
+        document.title = 'CHECK: V3 OK';
+      }, 1500);
+    } catch (e) {
+      log('ОШИБКА: ' + e.message);
+      log('ИТОГ: исключение при создании');
+      document.title = 'CHECK: V3 ERROR ' + e.message.slice(0, 40);
+    }
+  }, function (e) {
+    log('ready отклонён: ' + (e && e.message ? e.message : e));
+    log('ИТОГ: ready отклонён');
+    document.title = 'CHECK: V3 REJECTED';
+  });
+});
+</script>
+</body>
+</html>
