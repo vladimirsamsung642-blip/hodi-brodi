@@ -131,26 +131,39 @@ function ensureMap() {
   window.ymaps.ready(() => {
     const node = document.getElementById('yandex-map');
     if (!node) return;
+
+    /* При отклонённом ключе new ymaps.Map() бросает исключение. Раньше
+       таймаут снимался до создания карты, и страница навсегда оставалась
+       с надписью «Загружаем карту…» без всякого сообщения. Теперь ошибка
+       ловится и превращается в понятный текст, а страховка снимается
+       только после успешной инициализации. */
+    try {
+      const view = CITY_VIEW[getState().city] || CITY_VIEW['Тольятти'];
+      mapState.map = new window.ymaps.Map(node, {
+        center: view.center,
+        zoom: view.zoom,
+        controls: ['zoomControl', 'geolocationControl']
+      }, {
+        suppressMapOpenBlock: true,
+        yandexMapDisablePoiInteractivity: true
+      });
+
+      mapState.clusterer = new window.ymaps.Clusterer({
+        preset: 'islands#invertedVioletClusterIcons',
+        groupByCoordinates: false,
+        clusterDisableClickZoom: false,
+        hasBalloon: false
+      });
+      mapState.map.geoObjects.add(mapState.clusterer);
+    } catch (error) {
+      mapState.failed = true;
+      clearTimeout(startGuard);
+      showKeyNotice();
+      return;
+    }
+
     started = true;
     clearTimeout(startGuard);
-
-    const view = CITY_VIEW[getState().city] || CITY_VIEW['Тольятти'];
-    mapState.map = new window.ymaps.Map(node, {
-      center: view.center,
-      zoom: view.zoom,
-      controls: ['zoomControl', 'geolocationControl']
-    }, {
-      suppressMapOpenBlock: true,
-      yandexMapDisablePoiInteractivity: true
-    });
-
-    mapState.clusterer = new window.ymaps.Clusterer({
-      preset: 'islands#invertedVioletClusterIcons',
-      groupByCoordinates: false,
-      clusterDisableClickZoom: false,
-      hasBalloon: false
-    });
-    mapState.map.geoObjects.add(mapState.clusterer);
 
     mapState.ready = true;
     const loading = document.getElementById('map-loading');

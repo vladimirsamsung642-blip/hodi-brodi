@@ -4152,6 +4152,13 @@ svg {
   background: var(--pale);
 }
 
+/* Атрибут hidden работает только если авторский CSS не задаёт свой display.
+   Здесь display: grid перебивал правило браузера, и слой с надписью
+   «Загружаем карту…» оставался поверх уже готовой карты навсегда. */
+.map-loading[hidden] {
+  display: none;
+}
+
 .map-loading.is-error {
   color: var(--ink);
 }
