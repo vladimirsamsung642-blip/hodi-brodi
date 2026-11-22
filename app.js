@@ -127,8 +127,33 @@ function dayOffset(date) {
   return Math.round((startOfDay(date) - startOfDay(new Date())) / 86400000);
 }
 
+/* День и дата события — в поясе события, независимо от того, где смотрят. */
+function dayPartsOf(date) {
+  const parts = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: EVENT_TIME_ZONE,
+    day: 'numeric',
+    month: 'numeric',
+    weekday: 'short'
+  }).formatToParts(date);
+  const pick = type => (parts.find(part => part.type === type) || {}).value;
+  return {
+    day: Number(pick('day')),
+    month: Number(pick('month')) - 1,
+    weekday: pick('weekday')
+  };
+}
+
+/* События проходят в Самарской области (UTC+4). Без явного timeZone время
+   показывалось в поясе смотрящего: «Любэ» в 18:00 превращалось в 09:00
+   у того, кто открывает сайт из другого региона. */
+const EVENT_TIME_ZONE = 'Europe/Samara';
+
 function timeOf(date) {
-  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: EVENT_TIME_ZONE
+  });
 }
 
 function dayLabel(date) {
@@ -280,7 +305,8 @@ function renderEventCategories() {
 function eventCard(event) {
   const start = new Date(event.start);
   const saved = afisha.saved.includes(event.id);
-  const dateBlock = `<span class="ev-date" aria-hidden="true"><b>${start.getDate()}</b><span>${SHORT_MONTHS[start.getMonth()]}</span></span>`;
+  const dateParts = dayPartsOf(start);
+  const dateBlock = `<span class="ev-date" aria-hidden="true"><b>${dateParts.day}</b><span>${SHORT_MONTHS[dateParts.month]}</span></span>`;
   const hasCoords = Array.isArray(event.coords) && event.coords.length === 2;
   return `
     <article class="ev-card" data-event="${esc(event.id)}">
@@ -322,6 +348,7 @@ function eventCard(event) {
 function renderEventsFeature(list) {
   const box = $('#events-feature');
   if (!box) return;
+  /* привязка ниже, после перерисовки */
   const featured = list.find(event => event.id === afisha.featured) || list.find(event => event.editorPick) || list[0];
   if (!featured) {
     box.hidden = true;
@@ -371,6 +398,8 @@ function renderEventsFeature(list) {
         </div>
       </div>
     </article>`;
+
+  bindImageFallbacks(box);
 }
 
 function renderEvents() {
@@ -386,6 +415,9 @@ function renderEvents() {
   renderEventCategories();
   renderEventsFeature(list);
   renderEventsList(list);
+  /* Фото событий приходят с внешнего домена: без этой привязки onError
+     не срабатывал и битая картинка ломала карточку. */
+  bindImageFallbacks(feed);
   persistAfisha();
   renderSearch();
 }
