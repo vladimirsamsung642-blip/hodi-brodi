@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#8080d8">
-  <meta name="description" content="Ходи Броди — городская афиша и задания: исследуй места, выполняй задания и копи бутсы на скидки и мерч.">
-  <title>Ходи Броди — задания, бутсы, открытия</title>
-  <link rel="stylesheet" href="styles.css?v=20261122-redesign">
+  <meta name="description" content="Ходи Броди — городская афиша: события, выставки, лекции и места в Тольятти и Самаре. Выбери, куда пойти сегодня.">
+  <title>Ходи Броди — афиша города, события и места</title>
+  <link rel="stylesheet" href="styles.css?v=20261122-events">
 </head>
 <body>
 <svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -23,6 +23,8 @@
   <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 1.8 7.1L21 12l-7.2 2.7L12 22l-2-7.3L3 12l7-2.9L12 2Z"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4m8-4v4M3.5 10h17M8 14h2m4 0h2m-8 3.5h2"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
 </svg>
@@ -36,6 +38,7 @@
       <span class="brand-word" aria-hidden="true">Ходи Броди</span>
     </a>
     <nav class="primary-nav" aria-label="Главная навигация">
+      <a href="#events">Афиша</a>
       <a href="#map-section">Карта и задания</a>
       <a href="#collections">Подборки</a>
       <a href="#exchange">Обмен бутс</a>
@@ -59,6 +62,7 @@
     </div>
   </div>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Мобильная навигация">
+    <a href="#events">Афиша</a>
     <a href="#map-section">Карта и задания</a>
     <a href="#collections">Подборки</a>
     <a href="#exchange">Обмен бутс</a>
@@ -77,12 +81,24 @@
     </svg>
     <div class="hero-inner">
       <div class="hero-copy">
-        <span class="hero-kicker">Новый способ исследовать город</span>
-        <h1 class="hero-title" id="hero-title">Броди.<br>Выполняй.<br><em>Копи.</em></h1>
-        <p class="hero-lead">Исследуй городские места, закрывай задания и собирай <strong>бутсы</strong> — свою валюту впечатлений.</p>
-        <div class="hero-actions">
-          <a class="btn btn--primary" href="#map-section">На карту <svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn--ghost" href="#exchange">Куда потратить бутсы</a>
+        <span class="hero-kicker">Городская афиша · 4 города</span>
+        <h1 class="hero-title" id="hero-title">Куда пойти<br><em>сегодня?</em></h1>
+        <p class="hero-lead">События, выставки и места города в одной афише. Выбери, чем заняться, — и забери <strong>бутсы</strong> за визит.</p>
+        <form class="hero-search" id="hero-search" role="search" autocomplete="off">
+          <svg class="hero-search-icon" aria-hidden="true"><use href="#i-search"/></svg>
+          <label class="visually-hidden" for="search-input">Поиск событий и мест</label>
+          <input id="search-input" name="q" type="search" placeholder="Событие, место или настроение" aria-describedby="search-hint"
+                 role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
+          <kbd class="hero-search-kbd" aria-hidden="true">/</kbd>
+          <div class="search-panel" id="search-results" role="listbox" aria-label="Результаты поиска" hidden></div>
+          <p class="visually-hidden" id="search-hint">Начните вводить название события, места или категорию. Стрелки — навигация, Enter — выбор.</p>
+        </form>
+        <div class="hero-quick" id="hero-quick" aria-label="Быстрые фильтры афиши">
+          <span>Сейчас ищут:</span>
+          <a href="#events" data-quick="today">Сегодня</a>
+          <a href="#events" data-quick="weekend">На выходные</a>
+          <a href="#events" data-quick="free">Бесплатно</a>
+          <a href="#events" data-quick="kids">С детьми</a>
         </div>
       </div>
       <div class="hero-aside">
@@ -102,6 +118,56 @@
           <li><b id="hero-reward">440</b><span>бутс в заданиях</span></li>
         </ul>
       </div>
+    </div>
+  </section>
+
+  <section class="events-section" id="events" aria-labelledby="events-title">
+    <div class="container">
+      <div class="events-head">
+        <div>
+          <span class="eyebrow">Афиша города</span>
+          <h2 class="section-title" id="events-title">Что происходит<br>рядом</h2>
+        </div>
+        <p class="section-text" id="events-summary" aria-live="polite" aria-atomic="true">Собираем события на ближайшие дни. Выбирай по дате, теме и цене.</p>
+      </div>
+
+      <div class="events-controls">
+        <div class="period-tabs" id="period-tabs" role="group" aria-label="Период афиши">
+          <button type="button" data-period="today" aria-pressed="false">Сегодня</button>
+          <button type="button" data-period="tomorrow" aria-pressed="false">Завтра</button>
+          <button type="button" data-period="weekend" aria-pressed="false">Выходные</button>
+          <button type="button" data-period="week" aria-pressed="true">Неделя</button>
+        </div>
+        <div class="events-filters">
+          <label class="field field--compact">
+            <span class="visually-hidden">Город афиши</span>
+            <span class="select-wrap select-wrap--sm">
+              <select id="events-city">
+                <option>Тольятти</option>
+                <option>Самара</option>
+                <option>Жигулёвск</option>
+                <option>Новокуйбышевск</option>
+              </select>
+            </span>
+          </label>
+          <button type="button" class="chip chip--filter" id="events-free" aria-pressed="false">
+            <svg aria-hidden="true"><use href="#i-ticket"/></svg> Бесплатно
+          </button>
+          <button type="button" class="chip chip--filter" id="events-kids" aria-pressed="false">
+            <svg aria-hidden="true"><use href="#i-family"/></svg> С детьми
+          </button>
+          <button type="button" class="chip chip--filter" id="events-saved" aria-pressed="false">
+            <svg aria-hidden="true"><use href="#i-star"/></svg> Избранное <span id="events-saved-count">0</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="events-catbar" id="events-categories" role="group" aria-label="Категории событий"></div>
+
+      <div class="events-feature" id="events-feature"></div>
+      <div class="events-feed" id="events-feed"></div>
+      <div class="events-empty" id="events-empty" hidden></div>
+      <p class="events-caption">Демо-афиша: события, цены и счётчики «идут» — пример. Покупка билетов не подключена.</p>
     </div>
   </section>
 
@@ -316,7 +382,7 @@
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="data.js?v=20261122-redesign"></script>
-<script src="app.js?v=20261122-redesign"></script>
+<script src="data.js?v=20261122-events"></script>
+<script src="app.js?v=20261122-events"></script>
 </body>
 </html>

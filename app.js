@@ -6,6 +6,8 @@
    добавлены защита от пустых данных и фолбэки для изображений. */
 
 const places = window.BRODI_PLACES || [];
+const events = window.BRODI_EVENTS || [];
+const eventMeta = window.BRODI_EVENT_META || { cities: [], categories: [] };
 const categories = ['Все места', 'Еда', 'Развлечения', 'С детьми', 'Активный отдых'];
 const offers = [
   { id: 'ticket5', title: '−5% на билет', tag: 'Первое обменное предложение', description: 'Небольшой бонус на следующее городское событие.', cost: 160, feature: false },
@@ -16,6 +18,40 @@ const collections = [
   { id: 'play', number: '02', title: 'День впечатлений', subtitle: 'Пробуй новое и добавляй движению место в своём дне.', eyebrow: 'Для тех, кто в движении', image: 'assets/elizium.webp', places: ['elizium', 'lady'] },
   { id: 'together', number: '03', title: 'Вместе интереснее', subtitle: 'Найди идеи, которыми можно поделиться с близкими.', eyebrow: 'Для общих впечатлений', image: 'assets/pro.webp', places: ['pro', 'elizium'] }
 ];
+
+const eventStorageKey = 'brodi-afisha-v1';
+let savedEvents = {};
+try {
+  savedEvents = JSON.parse(localStorage.getItem(eventStorageKey) || '{}') || {};
+} catch (error) {
+  savedEvents = {};
+}
+
+const afisha = {
+  city: eventMeta.cities.includes(savedEvents.city) ? savedEvents.city : 'Тольятти',
+  period: ['today', 'tomorrow', 'weekend', 'week'].includes(savedEvents.period) ? savedEvents.period : 'week',
+  category: eventMeta.categories.includes(savedEvents.category) ? savedEvents.category : 'Все',
+  free: Boolean(savedEvents.free),
+  kids: Boolean(savedEvents.kids),
+  savedOnly: false,
+  featured: null,
+  saved: Array.isArray(savedEvents.saved) ? savedEvents.saved.filter(id => events.some(event => event.id === id)) : []
+};
+
+function persistAfisha() {
+  try {
+    localStorage.setItem(eventStorageKey, JSON.stringify({
+      city: afisha.city,
+      period: afisha.period,
+      category: afisha.category,
+      free: afisha.free,
+      kids: afisha.kids,
+      saved: afisha.saved
+    }));
+  } catch (error) {
+    /* приватный режим — продолжаем без сохранения */
+  }
+}
 
 let selectedCollection = 'taste';
 const storageKey = 'brodi-new-concept-v2';
@@ -73,6 +109,84 @@ function persist() {
   }
 }
 
+/* Форматирование дат и расстояний -------------------------------------- */
+
+const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const SHORT_MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const WEEKDAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+
+function startOfDay(date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function dayOffset(date) {
+  return Math.round((startOfDay(date) - startOfDay(new Date())) / 86400000);
+}
+
+function timeOf(date) {
+  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+function dayLabel(date) {
+  const offset = dayOffset(date);
+  if (offset === 0) return 'Сегодня';
+  if (offset === 1) return 'Завтра';
+  const weekday = WEEKDAYS[date.getDay()];
+  return `${weekday}, ${date.getDate()} ${MONTHS[date.getMonth()]}`;
+}
+
+function fullDayLabel(date) {
+  const offset = dayOffset(date);
+  if (offset === 0) return 'Сегодня';
+  if (offset === 1) return 'Завтра';
+  return `${WEEKDAYS[date.getDay()]}, ${date.getDate()} ${MONTHS[date.getMonth()]}`;
+}
+
+function endOf(date, minutes) {
+  return new Date(date.getTime() + minutes * 60000);
+}
+
+function durationLabel(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest} мин`;
+  return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
+}
+
+function priceLabel(event) {
+  if (event.price === 0) return 'Вход свободный';
+  return `от ${event.price.toLocaleString('ru-RU')} ₽`;
+}
+
+function isWeekend(date) {
+  const day = date.getDay();
+  return day === 6 || day === 0;
+}
+
+function eventById(id) {
+  return events.find(event => event.id === id);
+}
+
+function eventDetails(event) {
+  if (!event.deadline) return event.description;
+  const deadline = new Date(event.deadline);
+  const left = Math.max(0, Math.ceil((deadline - new Date()) / 86400000));
+  const when = left <= 1 ? 'до завтра' : `осталось ${left} ${plural(left, 'день', 'дня', 'дней')}`;
+  return `${event.description} Регистрация: ${when} (до ${deadline.getDate()} ${MONTHS[deadline.getMonth()]}, ${timeOf(deadline)}).`;
+}
+
+/* Возврат фокуса после перерисовки: без него клавиатура «падает» на body. */
+function restoreFocus(selector) {
+  const node = document.querySelector(selector);
+  if (node) node.focus({ preventScroll: true });
+}
+
+function normalize(text) {
+  return String(text).toLowerCase().replace(/ё/g, 'е').trim();
+}
+
 let toastTimer;
 function toast(message) {
   const node = $('#toast');
@@ -117,6 +231,366 @@ function bindImageFallbacks(root = document) {
   });
 }
 
+/* Афиша ---------------------------------------------------------------- */
+
+function eventInPeriod(event) {
+  const start = new Date(event.start);
+  const offset = dayOffset(start);
+  if (offset < 0) return false;
+  if (afisha.period === 'today') return offset === 0;
+  if (afisha.period === 'tomorrow') return offset === 1;
+  if (afisha.period === 'weekend') return isWeekend(start) && offset >= 0 && offset <= 7;
+  return offset <= 7;
+}
+
+function visibleEvents(ignoreSaved) {
+  const query = normalize($('#search-input') ? $('#search-input').value : '');
+  return events
+    .filter(event => event.city === afisha.city)
+    .filter(event => afisha.category === 'Все' || event.category === afisha.category)
+    .filter(event => !afisha.free || event.price === 0)
+    .filter(event => !afisha.kids || event.age === '0+' || event.age === '6+')
+    .filter(event => ignoreSaved || !afisha.savedOnly || afisha.saved.includes(event.id))
+    .filter(eventInPeriod)
+    .filter(event => !query || normalize(`${event.title} ${event.venue} ${event.category} ${event.description}`).includes(query))
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+}
+
+function periodLabel() {
+  return { today: 'сегодня', tomorrow: 'завтра', weekend: 'на выходные', week: 'на неделю' }[afisha.period];
+}
+
+function renderEventCategories() {
+  const box = $('#events-categories');
+  if (!box) return;
+  const list = ['Все', ...eventMeta.categories];
+  box.innerHTML = list.map(category => {
+    const active = afisha.category === category;
+    const count = events.filter(event => event.city === afisha.city
+      && eventInPeriod(event)
+      && (category === 'Все' || event.category === category)
+      && (!afisha.free || event.price === 0)
+      && (!afisha.kids || event.age === '0+' || event.age === '6+')).length;
+    return `<button type="button" class="tag-chip" data-event-category="${esc(category)}" aria-pressed="${active}">${esc(category)}${count ? ` <span>${count}</span>` : ''}</button>`;
+  }).join('');
+}
+
+function eventCard(event) {
+  const start = new Date(event.start);
+  const saved = afisha.saved.includes(event.id);
+  const dateBlock = `<span class="ev-date" aria-hidden="true"><b>${start.getDate()}</b><span>${SHORT_MONTHS[start.getMonth()]}</span></span>`;
+  return `
+    <article class="ev-card" data-event="${esc(event.id)}">
+      <div class="ev-card-top">
+        ${dateBlock}
+        <span class="ev-cat">${esc(event.category)}</span>
+        ${event.editorPick ? '<span class="ev-pick">Выбор редакции</span>' : ''}
+        <button type="button" class="ev-save${saved ? ' is-saved' : ''}" data-save-event="${esc(event.id)}" aria-pressed="${saved}" aria-label="${saved ? 'Убрать из избранного' : 'Сохранить в избранное'}">
+          <svg aria-hidden="true"><use href="#i-star"/></svg>
+        </button>
+      </div>
+      <h3 class="ev-title"><button type="button" class="ev-title-btn" data-open-event="${esc(event.id)}">${esc(event.title)}</button></h3>
+      <p class="ev-meta">
+        <span>${esc(event.venue)}</span>
+        <span class="ev-dot" aria-hidden="true"></span>
+        <span>${dayLabel(start)}, ${timeOf(start)}</span>
+      </p>
+      <div class="ev-foot">
+        <span class="ev-price${event.price === 0 ? ' is-free' : ''}">${priceLabel(event)}</span>
+        <span class="ev-going"><svg aria-hidden="true"><use href="#i-family"/></svg> ${event.going} идут</span>
+        <div class="ev-actions">
+          <span class="ev-cta${event.price === 0 ? ' is-free' : ''}">${event.price === 0 ? 'Вход свободный' : 'Купить билет ↗'}</span>
+          <button type="button" class="ev-cal" data-calendar="${esc(event.id)}" aria-label="Добавить в календарь">
+            <svg aria-hidden="true"><use href="#i-calendar"/></svg>
+          </button>
+        </div>
+      </div>
+    </article>`;
+}
+
+function renderEventsFeature(list) {
+  const box = $('#events-feature');
+  if (!box) return;
+  const featured = list.find(event => event.id === afisha.featured) || list.find(event => event.editorPick) || list[0];
+  if (!featured) {
+    box.hidden = true;
+    box.innerHTML = '';
+    afisha.featured = null;
+    return;
+  }
+  afisha.featured = featured.id;
+  const start = new Date(featured.start);
+  const end = endOf(start, featured.duration);
+  box.hidden = false;
+  box.innerHTML = `
+    <article class="feature-ev" data-media>
+      <div class="feature-ev-media">
+        <div class="feature-ev-wash" aria-hidden="true"></div>
+        <span class="feature-ev-flag">${featured.editorPick ? 'Выбор редакции' : 'Ближайшее'}</span>
+        <div class="feature-ev-title">
+          <span class="feature-ev-cat">${esc(featured.category)} · ${esc(featured.city)}</span>
+          <h3>${esc(featured.title)}</h3>
+          <p>${esc(eventDetails(featured))}</p>
+        </div>
+      </div>
+      <div class="feature-ev-side">
+        <dl class="feature-ev-facts">
+          <div><dt>Когда</dt><dd>${fullDayLabel(start)}, ${timeOf(start)}—${timeOf(end)}</dd></div>
+          <div><dt>Где</dt><dd>${esc(featured.venue)}<small>${esc(featured.address)}</small></dd></div>
+          <div><dt>Билет</dt><dd>${priceLabel(featured)}<small>${esc(featured.age)} · ${durationLabel(featured.duration)}</small></dd></div>
+        </dl>
+        <div class="feature-ev-going">
+          <span class="going-faces" aria-hidden="true"><i></i><i></i><i></i></span>
+          ${featured.going} человек идут
+        </div>
+        <div class="feature-ev-actions">
+          <span class="btn btn--primary btn--sm feature-ev-price">${featured.price === 0 ? 'Вход свободный' : `Билеты от ${featured.price.toLocaleString('ru-RU')} ₽`}</span>
+          <button type="button" class="btn btn--outline btn--sm" data-calendar="${esc(featured.id)}">
+            <svg aria-hidden="true"><use href="#i-calendar"/></svg> В календарь
+          </button>
+          <button type="button" class="ev-save ev-save--lg${afisha.saved.includes(featured.id) ? ' is-saved' : ''}"
+                  data-save-event="${esc(featured.id)}"
+                  aria-pressed="${afisha.saved.includes(featured.id)}"
+                  aria-label="${afisha.saved.includes(featured.id) ? 'Убрать из избранного' : 'Сохранить в избранное'}"
+                  title="${afisha.saved.includes(featured.id) ? 'Убрать из избранного' : 'Сохранить в избранное'}">
+            <svg aria-hidden="true"><use href="#i-star"/></svg>
+          </button>
+        </div>
+      </div>
+    </article>`;
+}
+
+function renderEvents() {
+  const feed = $('#events-feed');
+  if (!feed) return;
+  afisha.city = eventMeta.cities.includes($('#events-city').value) ? $('#events-city').value : afisha.city;
+  const list = visibleEvents();
+
+  $('#events-summary').textContent = list.length
+    ? `${list.length} ${plural(list.length, 'событие', 'события', 'событий')} ${periodLabel()} · ${afisha.city}`
+    : `Пока ничего не нашлось ${periodLabel()} · ${afisha.city}`;
+
+  renderEventCategories();
+  renderEventsFeature(list);
+  renderEventsList(list);
+  persistAfisha();
+  renderSearch();
+}
+
+/* Перерисовка только ленты и «подборки дня» — сохранение события
+   не сбрасывает клавиатурную навигацию по категориям. */
+function renderEventsList() {
+  const feed = $('#events-feed');
+  if (!feed) return;
+  const list = visibleEvents();
+  const safeFeatured = list.some(item => item.id === afisha.featured)
+    ? afisha.featured
+    : (list.find(item => item.editorPick) || list[0] || {}).id;
+  if (safeFeatured !== afisha.featured) renderEventsFeature(list);
+
+  const rest = list.filter(event => event.id !== afisha.featured);
+  feed.innerHTML = rest.map(eventCard).join('');
+  feed.hidden = !rest.length;
+
+  const empty = $('#events-empty');
+  empty.hidden = list.length > 0;
+  if (!list.length) {
+    empty.innerHTML = `
+      <div class="events-empty-inner">
+        <span class="events-empty-icon" aria-hidden="true"><svg><use href="#i-calendar"/></svg></span>
+        <b>${afisha.savedOnly ? 'В избранном пока пусто' : 'На этот фильтр событий нет'}</b>
+        <p>${afisha.savedOnly
+          ? 'Сохраняй события звёздочкой — они соберутся здесь и не потеряются.'
+          : 'Попробуй другую категорию, расширь период или включи бесплатные события.'}</p>
+        <button type="button" class="btn btn--purple btn--sm" id="events-reset">Показать всё ${periodLabel()}</button>
+      </div>`;
+  }
+
+  document.querySelectorAll('[data-period]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.period === afisha.period));
+  });
+  $('#events-free').setAttribute('aria-pressed', String(afisha.free));
+  $('#events-kids').setAttribute('aria-pressed', String(afisha.kids));
+  $('#events-saved').setAttribute('aria-pressed', String(afisha.savedOnly));
+  $('#events-saved-count').textContent = afisha.saved.length;
+  persistAfisha();
+}
+
+function resetEventFilters() {
+  afisha.period = 'week';
+  afisha.category = 'Все';
+  afisha.free = false;
+  afisha.kids = false;
+  afisha.savedOnly = false;
+  renderEvents();
+}
+
+/* Поиск: события + места, клавиатурная навигация ------------------------ */
+
+let searchIndex = 0;
+let searchItems = [];
+
+function searchResults(query) {
+  const tokens = normalize(query).split(/\s+/).filter(Boolean);
+  if (!tokens.length || tokens.join('').length < 2) return [];
+  const matches = text => {
+    const haystack = normalize(text);
+    return tokens.every(token => haystack.includes(token));
+  };
+  const eventHits = events
+    .map(event => ({
+      type: 'event',
+      item: event,
+      label: event.title,
+      meta: `${event.category} · ${event.venue} · ${dayLabel(new Date(event.start))}`,
+      score: (matches(event.title) ? 4 : 0) + (matches(event.venue) ? 3 : 0) + (matches(event.category) ? 2 : 0) + (matches(event.city) ? 1 : 0)
+    }))
+    .filter(hit => hit.score > 0 || matches(hit.item.description))
+    .sort((a, b) => b.score - a.score);
+
+  const placeHits = places
+    .map(place => ({
+      type: 'place',
+      item: place,
+      label: place.name,
+      meta: `${place.category} · ${place.city}`,
+      score: (matches(place.name) ? 4 : 0) + (matches(place.category) ? 2 : 0) + (matches(place.city) ? 1 : 0)
+    }))
+    .filter(hit => hit.score > 0);
+
+  return [...eventHits, ...placeHits].slice(0, 8);
+}
+
+function renderSearch() {
+  const input = $('#search-input');
+  const panel = $('#search-results');
+  if (!input || !panel) return;
+  const query = input.value;
+  searchItems = searchResults(query);
+  searchIndex = 0;
+
+  if (!query.trim()) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+    input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+
+  if (query.trim().length < 2) {
+    panel.hidden = false;
+    panel.innerHTML = '<p class="search-empty">Ещё один символ — и покажем подходящие события и места.</p>';
+    input.setAttribute('aria-expanded', 'true');
+    return;
+  }
+
+  if (!searchItems.length) {
+    panel.hidden = false;
+    panel.innerHTML = `<p class="search-empty">Ничего не нашли по «${esc(query)}». Попробуй «джаз», «выставка» или «Самара».</p>`;
+    input.setAttribute('aria-expanded', 'true');
+    return;
+  }
+
+  panel.hidden = false;
+  panel.innerHTML = searchItems.map((hit, index) => `
+    <button type="button" class="search-hit" role="option" id="search-opt-${index}" data-search-hit="${index}" aria-selected="${index === 0}">
+      <span class="search-hit-type">${hit.type === 'event' ? 'Событие' : 'Место'}</span>
+      <span class="search-hit-copy"><b>${esc(hit.label)}</b><small>${esc(hit.meta)}</small></span>
+      <span class="search-hit-arrow" aria-hidden="true">↗</span>
+    </button>`).join('');
+  input.setAttribute('aria-expanded', 'true');
+}
+
+function openSearchHit(index) {
+  const hit = searchItems[index];
+  if (!hit) return;
+  const input = $('#search-input');
+  input.value = '';
+  renderSearch();
+  if (hit.type === 'event') {
+    afisha.city = hit.item.city;
+    $('#events-city').value = hit.item.city;
+    afisha.period = 'week';
+    afisha.category = 'Все';
+    afisha.featured = hit.item.id;
+    renderEvents();
+    document.querySelector('#events').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    state.city = hit.item.city;
+    state.category = 'Все места';
+    state.selected = hit.item.id;
+    render();
+    document.querySelector('#task-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function moveSearchSelection(delta) {
+  if (!searchItems.length) return;
+  searchIndex = (searchIndex + delta + searchItems.length) % searchItems.length;
+  document.querySelectorAll('.search-hit').forEach((hit, index) => {
+    const active = index === searchIndex;
+    hit.setAttribute('aria-selected', String(active));
+    hit.classList.toggle('is-active', active);
+  });
+  $('#search-input').setAttribute('aria-activedescendant', `search-opt-${searchIndex}`);
+}
+
+/* Календарь: .ics без сервера ------------------------------------------ */
+
+function downloadCalendar(event) {
+  const start = new Date(event.start);
+  const end = endOf(start, event.duration);
+  const stamp = date => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const escape = value => String(value).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const utf8 = new TextEncoder();
+  /* RFC 5545: строки длиннее 75 октетов переносятся с ведущим пробелом. */
+  const fold = line => {
+    const bytes = utf8.encode(line);
+    if (bytes.length <= 75) return line;
+    const parts = [];
+    let chunk = '';
+    let size = 0;
+    for (const char of line) {
+      const charSize = utf8.encode(char).length;
+      if (size + charSize > 73) {
+        parts.push(chunk);
+        chunk = '';
+        size = 0;
+      }
+      chunk += char;
+      size += charSize;
+    }
+    if (chunk) parts.push(chunk);
+    return parts.join('\r\n ');
+  };
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Hodi Brodi//Afisha//RU',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:${event.id}@hodi-brodi.demo`,
+    `DTSTAMP:${stamp(new Date())}`,
+    `DTSTART:${stamp(start)}`,
+    `DTEND:${stamp(end)}`,
+    `SUMMARY:${escape(event.title)}`,
+    `LOCATION:${escape(`${event.venue}, ${event.address}`)}`,
+    `DESCRIPTION:${escape(`${eventDetails(event)}${event.price ? ` Билеты от ${event.price} ₽.` : ' Вход свободный.'}`)}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ];
+  const blob = new Blob([lines.map(fold).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `hodi-brodi-${event.id}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`«${event.title}» — в календаре. Файл .ics открывается в Google, Apple и Outlook.`);
+}
+
 function render() {
   $('#city-select').value = state.city;
   $('#header-balance').textContent = state.balance.toLocaleString('ru-RU');
@@ -132,6 +606,7 @@ function render() {
   renderMapAndTasks();
   renderOffers();
   renderCollections();
+  renderEvents();
   persist();
 }
 
@@ -530,7 +1005,167 @@ document.addEventListener('click', event => {
     return;
   }
 
+  /* Афиша */
+  const period = event.target.closest('[data-period]');
+  if (period) {
+    afisha.period = period.dataset.period;
+    renderEvents();
+    restoreFocus(`[data-period="${afisha.period}"]`);
+    return;
+  }
+
+  const eventCategory = event.target.closest('[data-event-category]');
+  if (eventCategory) {
+    afisha.category = eventCategory.dataset.eventCategory;
+    renderEvents();
+    restoreFocus(`[data-event-category="${afisha.category}"]`);
+    return;
+  }
+
+  const saveEvent = event.target.closest('[data-save-event]');
+  if (saveEvent) {
+    const id = saveEvent.dataset.saveEvent;
+    if (!eventById(id)) return;
+    afisha.saved = afisha.saved.includes(id) ? afisha.saved.filter(value => value !== id) : [...afisha.saved, id];
+    renderEventsList();
+    restoreFocus(`[data-save-event="${id}"]`) || restoreFocus('#events-saved');
+    toast(afisha.saved.includes(id) ? 'Событие сохранено в избранное' : 'Событие убрано из избранного');
+    return;
+  }
+
+  const openEvent = event.target.closest('[data-open-event]');
+  if (openEvent) {
+    const item = eventById(openEvent.dataset.openEvent);
+    if (!item) return;
+    afisha.featured = item.id;
+    renderEvents();
+    document.querySelector('#events').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  const calendar = event.target.closest('[data-calendar]');
+  if (calendar) {
+    const item = eventById(calendar.dataset.calendar);
+    if (item) downloadCalendar(item);
+    return;
+  }
+
+  if (event.target.closest('#events-reset')) {
+    resetEventFilters();
+    restoreFocus('[data-period="week"]');
+    return;
+  }
+
+  if (event.target.closest('#events-free')) {
+    afisha.free = !afisha.free;
+    renderEvents();
+    restoreFocus('#events-free');
+    return;
+  }
+
+  if (event.target.closest('#events-kids')) {
+    afisha.kids = !afisha.kids;
+    renderEvents();
+    restoreFocus('#events-kids');
+    return;
+  }
+
+  if (event.target.closest('#events-saved')) {
+    afisha.savedOnly = !afisha.savedOnly;
+    renderEvents();
+    restoreFocus('#events-saved');
+    return;
+  }
+
+  const quick = event.target.closest('[data-quick]');
+  if (quick) {
+    const key = quick.dataset.quick;
+    afisha.category = 'Все';
+    afisha.kids = false;
+    afisha.free = false;
+    afisha.savedOnly = false;
+    if (key === 'today') afisha.period = 'today';
+    if (key === 'weekend') afisha.period = 'weekend';
+    if (key === 'free') { afisha.period = 'week'; afisha.free = true; }
+    if (key === 'kids') { afisha.period = 'week'; afisha.kids = true; }
+    renderEvents();
+    return;
+  }
+
+  const searchHit = event.target.closest('[data-search-hit]');
+  if (searchHit) {
+    openSearchHit(Number(searchHit.dataset.searchHit));
+    return;
+  }
+
   if (event.target.closest('.mobile-nav a')) setMenu(false);
+});
+
+/* Афиша: смена города и поиск */
+const eventsCity = $('#events-city');
+if (eventsCity) {
+  eventsCity.addEventListener('change', () => {
+    afisha.city = eventsCity.value;
+    renderEvents();
+  });
+}
+
+const searchInput = $('#search-input');
+if (searchInput) {
+  searchInput.addEventListener('input', renderSearch);
+  searchInput.addEventListener('focus', () => {
+    if (searchInput.value.trim()) renderSearch();
+  });
+  searchInput.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveSearchSelection(1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveSearchSelection(-1);
+    } else if (event.key === 'Enter') {
+      if (searchItems.length) {
+        event.preventDefault();
+        openSearchHit(searchIndex);
+      }
+    } else if (event.key === 'Escape') {
+      searchInput.value = '';
+      renderSearch();
+      searchInput.blur();
+    }
+  });
+  $('#hero-search').addEventListener('submit', event => {
+    event.preventDefault();
+    if (searchItems.length) openSearchHit(searchIndex);
+  });
+}
+
+/* «/» — фокус в поиск, как в почте и трекерах */
+document.addEventListener('keydown', event => {
+  if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    const tag = (event.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || event.target.isContentEditable) return;
+    const input = $('#search-input');
+    if (!input) return;
+    event.preventDefault();
+    input.focus();
+    input.select();
+  }
+  if (event.key === 'Escape' && document.activeElement === searchInput) {
+    searchInput.value = '';
+    renderSearch();
+  }
+});
+
+/* Закрываем подсказки при клике вне поиска */
+document.addEventListener('click', event => {
+  if (!event.target.closest('#hero-search')) {
+    const panel = $('#search-results');
+    if (panel && !panel.hidden) {
+      panel.hidden = true;
+      $('#search-input').setAttribute('aria-expanded', 'false');
+    }
+  }
 });
 
 $('#city-select').addEventListener('change', event => {
