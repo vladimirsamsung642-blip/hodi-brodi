@@ -1,8 +1,52 @@
 'use strict';
-window.BRODI_PLACES=[
-  {id:'monblan',name:'Монблан',city:'Тольятти',category:'Еда',task:'Загляни на завтрак или обед и найди свой новый любимый вкус.',reward:80,address:'г. Тольятти, ул. Баныкина, 21Г',description:'Ресторан в новом корпусе отеля «Альпен парк»: завтраки, обеды и ужины.',image:'assets/monblan.webp',url:'https://hodi-brodi.ru/places/monblan/',x:27,y:48},
-  {id:'vershina',name:'Вершина',city:'Тольятти',category:'Еда',task:'Устрой вкусную паузу в городской прогулке.',reward:80,address:'г. Тольятти, ул. Баныкина, 21Б',description:'Ресторан для встреч с близкими, деловых встреч и праздников.',image:'assets/vershina.webp',url:'https://hodi-brodi.ru/places/vershina/',x:38,y:73},
-  {id:'elizium',name:'Элизиум',city:'Тольятти',category:'Развлечения',task:'Выбери игру или квест и попробуй новый формат отдыха.',reward:100,address:'г. Тольятти, Цветной бульвар, 29А',description:'Пространство развлечений: квесты, лазертаг и другие игры.',image:'assets/elizium.webp',url:'https://hodi-brodi.ru/places/elizium/',x:68,y:46},
-  {id:'pro',name:'Про.Праздник',city:'Тольятти',category:'С детьми',task:'Открой для себя игровое пространство или мастер-класс.',reward:80,address:'г. Тольятти, ул. Дзержинского, 25А, 1 этаж',description:'Интерактивный детский парк и пространство для праздников и мастер-классов.',image:'assets/pro.webp',url:'https://hodi-brodi.ru/places/interaktivnyij-park-pro-pr4zdnik/',x:54,y:76},
-  {id:'lady',name:'Lady Jump',city:'Тольятти',category:'Активный отдых',task:'Попробуй активную тренировку и добавь движения в свой день.',reward:100,address:'г. Тольятти, ул. Дзержинского, 25А',description:'Студия групповых тренировок на батутах под ритмичную музыку.',image:'assets/lady.jpeg',url:'https://hodi-brodi.ru/places/lady-jump/',x:80,y:67}
-];
+
+/* Каталог для прототипа.
+
+   Данные — реальные, с https://hodi-brodi.ru (см. eventsData.js).
+   Здесь они приводятся к форме, которую ждёт приложение: места получают
+   награду в бутсах и координаты, события — длительность и флаги.
+
+   Координаты [широта, долгота] нужны Яндекс.Картам. Раньше карта была
+   рисованной схемой с процентами x/y — эти поля остались для совместимости,
+   но больше не используются для позиционирования. */
+
+const realPlaces = (window.BRODI_REAL_PLACES || []).map((place, index) => ({
+  ...place,
+  reward: [80, 80, 100, 80, 100, 80, 100, 120, 80][index] || 80,
+  task: place.task || defaultTask(place),
+  /* Позиция на схеме (легаси, не используется картой). */
+  x: place.x || 20 + ((index * 17) % 70),
+  y: place.y || 30 + ((index * 23) % 55)
+}));
+
+function defaultTask(place) {
+  const byCategory = {
+    'Вкус города': 'Загляни на завтрак или обед и найди свой новый любимый вкус.',
+    'Тело в тонусе': 'Попробуй тренировку и добавь движения в свой день.',
+    'Территория детства': 'Проведи время с ребёнком в игровом пространстве.',
+    'Город не спит': 'Начни вечер с этого места и забери бутсы.',
+    'Релакс': 'Выдохни и восстановись после рабочей недели.'
+  };
+  return byCategory[place.category] || 'Открой новое место в городе и забери бутсы.';
+}
+
+const realEvents = (window.BRODI_REAL_EVENTS || []).map(event => ({
+  ...event,
+  /* Поля, которых нет в источнике, но которые нужны интерфейсу. */
+  editorPick: Boolean(event.editorPick),
+  going: event.going || 0
+}));
+
+window.BRODI_PLACES = realPlaces;
+window.BRODI_EVENTS = realEvents;
+
+/* Города и категории берём из самих данных — чтобы фильтры не расходились
+   со списком событий. */
+const uniqueBy = (list, key) => [...new Set(list.map(item => item[key]).filter(Boolean))];
+
+window.BRODI_EVENT_META = {
+  cities: uniqueBy(realEvents, 'city'),
+  categories: uniqueBy(realEvents, 'category'),
+  source: 'https://hodi-brodi.ru',
+  updated: '2026-11-22'
+};
