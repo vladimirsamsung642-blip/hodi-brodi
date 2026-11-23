@@ -1,78 +1,231 @@
 'use strict';
 
-/* Яндекс.Карты для главной страницы — API v3 (ymaps3).
+/* Схематичная карта города — нарисованная, без внешних сервисов.
 
-   Почему v3: ключ проекта выпущен под JavaScript API v3 и привязан
-   к домену по HTTP Referer. С v2.1 тот же ключ на этом домене не
-   загружается вовсе (проверено страницей map-check.html: v3 создаёт
-   карту за ~0.5 с, v2.1 — «window.ymaps отсутствует»).
+   Зачем так: Яндекс.Карты требовали ключ, привязанный к домену, и на
+   новом хостинге карта не поднималась. Здесь карта целиком наша:
+   SVG-схема + точки, спроецированные из реальных координат.
+   Это демонстрация: подложка условная, но взаимное расположение точек
+   настоящее — по широте и долготе из eventsData.js.
 
-   Отличия v3, которые важно помнить:
-   1) координаты — [долгота, широта], а не [широта, долгота];
-   2) балунов как класса нет: балун — это DOM-элемент внутри маркера;
-   3) кластеры — отдельный пакет @yandex/ymaps3-clusterer через ymaps3.import;
-   4) готовность — промис ymaps3.ready, а не колбэк ymaps.ready.
+   Контракт с app.js сохранён полностью:
+   boot(), renderPoints(), focus(id), moveToCity(city), isReady().
+   focus() по-прежнему возвращает true/false — app.js показывает тост
+   при false, поэтому менять сигнатуру нельзя. */
 
-   Задачи модуля те же, что и раньше:
-   1) показать все места и события города интерактивными метками;
-   2) открывать карточку с фото, названием, временем, адресом и ссылкой;
-   3) дать карточкам и списку центрировать карту на точке и открыть её.
-
-   API грузится асинхронно. Если он не поднялся (сеть, блокировка,
-   ключ не подходит для домена), остаётся понятное сообщение,
-   а остальная страница работает как обычно. */
-
-const YANDEX_API_KEY = 'ac0dd8aa-6124-4239-89b1-31db39165c0a';
-
-/* Всё общее живёт в app.js. Читаем через геттеры — так map.js видит
-   актуальные state/places/events, а не снимок на момент загрузки. */
 const shared = window.BrodiShared || {};
 const { esc, dayLabel, timeOf, priceLabel } = shared;
 const getState = () => shared.state || {};
 const getPlaces = () => shared.places || [];
 const getEvents = () => shared.events || [];
 
-/* Города для центрирования карты. ВНИМАНИЕ: в v3 порядок координат
-   [долгота, широта] — то есть [lng, lat], обратный привычному. */
+/* Города, для которых есть схема. Тольятти рисуем подробно,
+   остальные показываются пустым состоянием — как и раньше. */
 const CITY_VIEW = {
-  'Тольятти': { center: [49.3181, 53.5135], zoom: 12 },
-  'Самара': { center: [50.1002, 53.1959], zoom: 12 },
-  'Жигулёвск': { center: [49.4891, 53.4023], zoom: 12 },
-  'Новокуйбышевск': { center: [49.9361, 53.1997], zoom: 12 }
+  'Тольятти': { center: [53.5135, 49.3181], zoom: 12 },
+  'Самара': { center: [53.1959, 50.1002], zoom: 12 },
+  'Жигулёвск': { center: [53.4023, 49.4891], zoom: 12 },
+  'Новокуйбышевск': { center: [53.1997, 49.9361], zoom: 12 }
 };
 
-/* Смещение карточки вверх, чтобы она не закрывала точку снизу. */
-const CARD_OFFSET = [0, -16];
+/* Размер схемы. Рисуем в этих координатах, а CSS растягивает по контейнеру,
+   поэтому карта одинаково выглядит на телефоне и на десктопе. */
+const SCHEME_W = 900;
+const SCHEME_H = 560;
+
+/* Отступы от крайних точек — чтобы метки не липли к краям. */
+const BOUNDS_PAD = 0.1;
+
+/* Кластеризация по сетке: точки ближе этого расстояния на экране
+   показываем одной меткой с числом. 52px — компромисс, при котором
+   в Тольятти получается 12 меток вместо 26, и они не наезжают. */
+const CLUSTER_GRID = 52;
 
 const mapState = {
-  map: null,
-  clusterer: null,
-  markers: new Map(),      /* id точки -> маркер */
-  featureById: new Map(),  /* id точки -> feature для кластеризатора */
-  openId: null,            /* id открытой карточки */
   ready: false,
   failed: false,
-  keyRejected: false,
+  markers: new Map(),      /* id точки -> элемент метки */
+  openId: null,            /* id открытой карточки */
   pendingRender: false,
   pendingFocus: null,
-  sourceReady: false
+  bounds: null,            /* текущие границы проекции */
+  mode: 'cluster'          /* cluster | single */
 };
 
-/* [широта, долгота] из данных -> [долгота, широта] для v3. */
-function toLngLat(coords) {
-  if (!Array.isArray(coords) || coords.length !== 2) return null;
-  return [coords[1], coords[0]];
+/* ── Проекция ──────────────────────────────────────────────────────────── */
+
+/* Реальные координаты — [широта, долгота]. */
+function boundsOf(points) {
+  if (!points.length) return null;
+  const lat = points.map(point => point.coords[0]);
+  const lng = points.map(point => point.coords[1]);
+  const dLat = Math.max(...lat) - Math.min(...lat) || 0.01;
+  const dLng = Math.max(...lng) - Math.min(...lng) || 0.01;
+  return {
+    minLat: Math.min(...lat) - dLat * BOUNDS_PAD,
+    maxLat: Math.max(...lat) + dLat * BOUNDS_PAD,
+    minLng: Math.min(...lng) - dLng * BOUNDS_PAD,
+    maxLng: Math.max(...lng) + dLng * BOUNDS_PAD
+  };
 }
 
-/* Обратное преобразование — для подсчёта границ области. */
-function toLatLng(coords) {
-  return [coords[1], coords[0]];
+/* Широта/долгота -> координаты схемы. Широта растёт вверх, поэтому
+   по Y инвертируем. */
+function project(coords) {
+  const b = mapState.bounds;
+  if (!b || !Array.isArray(coords)) return null;
+  const x = (coords[1] - b.minLng) / (b.maxLng - b.minLng) * SCHEME_W;
+  const y = (b.maxLat - coords[0]) / (b.maxLat - b.minLat) * SCHEME_H;
+  return { x, y };
 }
 
-/* Разметка карточки точки. Раньше это был HTML для балуна, теперь это
-   содержимое DOM-элемента внутри маркера — но разметка и классы те же,
-   поэтому стили .ym-balloon* продолжают работать. */
-function balloonHtml(point) {
+/* ── Данные точек ──────────────────────────────────────────────────────── */
+
+function mapPoints() {
+  const inCity = item => item.city === getState().city &&
+    Array.isArray(item.coords) && item.coords.length === 2;
+
+  const placeItems = getPlaces().filter(inCity).map(place => ({
+    id: `place:${place.id}`,
+    type: 'place',
+    name: place.name,
+    category: place.category,
+    kind: place.kind,
+    address: place.address,
+    hours: place.hours,
+    image: place.image,
+    url: place.url,
+    reward: place.reward,
+    coords: place.coords
+  }));
+
+  const eventItems = getEvents().filter(inCity).map(event => ({
+    id: `event:${event.id}`,
+    type: 'event',
+    name: event.title,
+    category: event.category,
+    address: event.address,
+    venue: event.venue,
+    start: event.start,
+    price: event.price,
+    image: event.image,
+    url: event.url || event.ticketUrl,
+    coords: event.coords
+  }));
+
+  return [...eventItems, ...placeItems];
+}
+
+/* Видимость повторяет фильтр списка мест: события видны всегда,
+   места — по выбранной категории. */
+function pointVisible(point) {
+  if (point.type === 'event') return true;
+  if (getState().category === 'Все места') return true;
+  const place = getPlaces().find(item => `place:${item.id}` === point.id);
+  return place ? place.category === getState().category : true;
+}
+
+/* ── Подложка схемы ────────────────────────────────────────────────────── */
+
+/* Улицы, река и парки. Координаты — в системе схемы (900×560).
+   Рисунок условный: он задаёт городской характер, а не точную географию.
+   Точки при этом стоят по реальным координатам — это и есть демонстрация. */
+function schemeSvg() {
+  return `
+    <svg class="map-drawing" viewBox="0 0 ${SCHEME_W} ${SCHEME_H}"
+         preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <!-- земля -->
+      <rect width="${SCHEME_W}" height="${SCHEME_H}" fill="#eeedf8"/>
+
+      <!-- кварталы -->
+      <g fill="#f6f5fd" stroke="#e4e3f0" stroke-width="1">
+        <rect x="60" y="40" width="150" height="110" rx="10"/>
+        <rect x="240" y="30" width="130" height="95" rx="10"/>
+        <rect x="400" y="60" width="165" height="120" rx="10"/>
+        <rect x="600" y="40" width="140" height="100" rx="10"/>
+        <rect x="770" y="70" width="100" height="130" rx="10"/>
+        <rect x="80" y="200" width="145" height="120" rx="10"/>
+        <rect x="255" y="180" width="120" height="105" rx="10"/>
+        <rect x="410" y="225" width="150" height="115" rx="10"/>
+        <rect x="600" y="185" width="135" height="115" rx="10"/>
+        <rect x="765" y="240" width="105" height="120" rx="10"/>
+        <rect x="95" y="370" width="160" height="120" rx="10"/>
+        <rect x="290" y="330" width="140" height="110" rx="10"/>
+        <rect x="465" y="380" width="120" height="110" rx="10"/>
+        <rect x="620" y="345" width="145" height="115" rx="10"/>
+        <rect x="800" y="400" width="80" height="110" rx="10"/>
+      </g>
+
+      <!-- парк -->
+      <g>
+        <ellipse cx="700" cy="300" rx="70" ry="46" fill="#e3f0e4"/>
+        <ellipse cx="700" cy="300" rx="70" ry="46" fill="none" stroke="#cfe3d1" stroke-width="2"/>
+        <circle cx="676" cy="288" r="7" fill="#cfe3d1"/>
+        <circle cx="712" cy="300" r="9" fill="#cfe3d1"/>
+        <circle cx="694" cy="318" r="6" fill="#cfe3d1"/>
+        <circle cx="728" cy="282" r="5" fill="#cfe3d1"/>
+      </g>
+
+      <!-- водоём / Волга в нижней части -->
+      <path d="M0 505 C 150 480, 300 520, 450 498 C 600 476, 740 512, 900 492 L900 560 L0 560 Z"
+            fill="#dce6f6" stroke="#c8d8f0" stroke-width="2"/>
+
+      <!-- магистрали -->
+      <g stroke="#ffffff" stroke-linecap="round" fill="none">
+        <path d="M30 165 H 870" stroke-width="16"/>
+        <path d="M30 340 H 870" stroke-width="14"/>
+        <path d="M225 20 V 480" stroke-width="15"/>
+        <path d="M580 20 V 480" stroke-width="13"/>
+        <path d="M390 20 V 470" stroke-width="9"/>
+        <path d="M780 20 V 470" stroke-width="9"/>
+        <path d="M60 445 H 850" stroke-width="9"/>
+      </g>
+
+      <!-- осевые линии магистралей -->
+      <g stroke="#e4e3f0" stroke-width="1.5" stroke-dasharray="7 9" fill="none">
+        <path d="M30 165 H 870"/>
+        <path d="M225 20 V 480"/>
+        <path d="M580 20 V 480"/>
+      </g>
+
+      <!-- подписи улиц -->
+      <text class="map-label" x="42" y="157">ЮБИЛЕЙНАЯ</text>
+      <text class="map-label" x="42" y="332">МИРА</text>
+      <text class="map-label" x="236" y="474">ЛЕНИНА</text>
+      <text class="map-label" x="591" y="474">СТАВРОПОЛЬСКАЯ</text>
+      <text class="map-label" x="640" y="332">ПАРК</text>
+      <text class="map-label" x="120" y="540">ВОЛГА</text>
+
+      <!-- маршрут для вдохновения: условная линия между точками -->
+      <path class="route-path" d="M170 113 C 260 90, 330 200, 420 240 S 560 300, 640 260"/>
+    </svg>`;
+}
+
+/* ── Метки и карточка ──────────────────────────────────────────────────── */
+
+function pinElement(point) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = `ym-pin ym-pin--${point.type}`;
+  el.setAttribute('aria-label', point.name);
+  el.title = point.name;
+  if (point.type === 'place' && getState().done?.includes(point.id.replace('place:', ''))) {
+    el.classList.add('is-done');
+  }
+  el.innerHTML = '<span class="ym-pin-dot" aria-hidden="true"></span>';
+  return el;
+}
+
+/* Карточка на карте всегда одна: при открытии новой прежняя убирается
+   из DOM, чтобы не копились невидимые блоки и не дублировались id. */
+function closeCard() {
+  document.querySelectorAll('#map-markers .ym-card').forEach(card => card.remove());
+  document.querySelectorAll('#map-markers .ym-pin.is-open')
+    .forEach(pin => pin.classList.remove('is-open'));
+  mapState.openId = null;
+}
+
+function cardHtml(point) {
   const isEvent = point.type === 'event';
   const when = isEvent && point.start
     ? `${dayLabel(new Date(point.start))}, ${timeOf(new Date(point.start))}`
@@ -101,351 +254,164 @@ function balloonHtml(point) {
     </div>`;
 }
 
-/* Точки текущего города: события и места с координатами. */
-function mapPoints() {
-  const inCity = item => item.city === getState().city && Array.isArray(item.coords) && item.coords.length === 2;
-
-  const placeItems = getPlaces().filter(inCity).map(place => ({
-    id: `place:${place.id}`,
-    type: 'place',
-    name: place.name,
-    category: place.category,
-    kind: place.kind,
-    address: place.address,
-    hours: place.hours,
-    image: place.image,
-    url: place.url,
-    coords: place.coords
-  }));
-
-  const eventItems = getEvents().filter(inCity).map(event => ({
-    id: `event:${event.id}`,
-    type: 'event',
-    name: event.title,
-    category: event.category,
-    address: event.address,
-    venue: event.venue,
-    start: event.start,
-    price: event.price,
-    image: event.image,
-    url: event.url || event.ticketUrl,
-    coords: event.coords
-  }));
-
-  return [...eventItems, ...placeItems];
-}
-
-/* Видимость точки повторяет фильтр списка мест (категория). */
-function pointVisible(point) {
-  if (point.type === 'event') return true;
-  if (getState().category === 'Все места') return true;
-  const place = getPlaces().find(item => `place:${item.id}` === point.id);
-  return place ? place.category === getState().category : true;
-}
-
-/* ── Маркеры ───────────────────────────────────────────────────────────── */
-
-/* Точка-«капля» на карте. Размеры и цвета — в styles.css (.ym-pin). */
-function pinElement(point) {
-  const el = document.createElement('button');
-  el.type = 'button';
-  el.className = `ym-pin ym-pin--${point.type}`;
-  el.setAttribute('aria-label', point.name);
-  el.title = point.name;
-  el.innerHTML = '<span class="ym-pin-dot" aria-hidden="true"></span>';
-  return el;
-}
-
-/* Открытая карточка. Одна на карту: открытие новой закрывает прежнюю. */
-function closeCard() {
-  if (!mapState.openId) return;
-  const marker = mapState.markers.get(mapState.openId);
-  if (marker && marker.element) marker.element.classList.remove('is-open');
-  mapState.openId = null;
-}
-
-function openCard(point) {
-  if (mapState.openId === point.id) {
-    closeCard();
-    return;
-  }
+function openCard(point, element) {
+  if (mapState.openId === point.id) { closeCard(); return; }
   closeCard();
+  if (!element) return;
 
-  const marker = mapState.markers.get(point.id);
-  if (!marker || !marker.element) return;
-
-  /* Карточку создаём один раз и храним в самом элементе маркера. */
-  let card = marker.element.querySelector('.ym-card');
+  let card = element.querySelector('.ym-card');
   if (!card) {
     card = document.createElement('div');
     card.className = 'ym-card';
-    card.innerHTML = balloonHtml(point);
-    /* Клик по карточке не должен закрывать её и не должен уходить в карту. */
+    card.innerHTML = cardHtml(point);
     card.addEventListener('click', evt => {
       evt.stopPropagation();
       if (evt.target.closest('[data-close-card]')) closeCard();
     });
-    marker.element.appendChild(card);
+    element.appendChild(card);
   }
 
-  marker.element.classList.add('is-open');
+  element.classList.add('is-open');
   mapState.openId = point.id;
 
-  /* Подводим точку к центру, оставляя место под карточку. */
-  const lngLat = toLngLat(point.coords);
-  if (lngLat && mapState.map) {
-    mapState.map.update({
-      location: { center: lngLat, zoom: Math.max(mapState.map.zoom || 12, 13) },
-      duration: 300
-    });
-  }
+  /* Подводим метку к центру видимой области, чтобы карточка не уезжала
+     за край контейнера. */
+  element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
 }
 
-/* ── Инициализация ─────────────────────────────────────────────────────── */
+/* ── Кластеризация ─────────────────────────────────────────────────────── */
 
-/* Слои, без которых маркеры не отрисуются: источник данных и слой
-   маркеров. Кластеризатор требует их явно (см. документацию пакета). */
-function addMarkerLayers(map) {
-  const { YMapFeatureDataSource, YMapLayer } = window.ymaps3;
-  if (!YMapFeatureDataSource || !YMapLayer) return;
-  map.addChild(new YMapFeatureDataSource({ id: 'brodi-source' }));
-  map.addChild(new YMapLayer({ source: 'brodi-source', type: 'markers', zIndex: 1800 }));
-  mapState.sourceReady = true;
+/* Разбиваем экранные координаты на клетки. Точки в одной клетке
+   показываем одной меткой с числом. */
+function clusterPoints(points) {
+  const cells = new Map();
+  const placed = points.map(point => ({ point, at: project(point.coords) }))
+    .filter(item => item.at);
+
+  placed.forEach(({ point, at }) => {
+    const key = `${Math.floor(at.x / CLUSTER_GRID)}:${Math.floor(at.y / CLUSTER_GRID)}`;
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push({ point, at });
+  });
+
+  const clusters = [];
+  cells.forEach(items => {
+    const x = items.reduce((sum, item) => sum + item.at.x, 0) / items.length;
+    const y = items.reduce((sum, item) => sum + item.at.y, 0) / items.length;
+    clusters.push({ x, y, items });
+  });
+  return clusters;
 }
 
-async function ensureMap() {
-  if (mapState.map || mapState.failed) return mapState.map;
+/* ── Отрисовка ─────────────────────────────────────────────────────────── */
 
-  const node = document.getElementById('yandex-map');
-  if (!node) return null;
+function renderMapPoints() {
+  if (!mapState.ready) { mapState.pendingRender = true; return; }
 
-  if (!window.ymaps3 || !window.ymaps3.ready) {
-    mapState.failed = true;
-    showMapFallback('Карта не загрузилась', 'Проверьте соединение — остальная страница работает.');
-    return null;
-  }
+  const host = document.getElementById('map-markers');
+  if (!host) return;
 
-  /* Если ключ отклонён, ymaps3.ready не разрешается. Страхуемся таймаутом,
-     чтобы «Загружаем карту…» не висело бесконечно. */
-  let settled = false;
-  const startGuard = setTimeout(() => {
-    if (settled) return;
-    mapState.failed = true;
-    showKeyNotice();
-  }, 8000);
+  closeCard();
+  mapState.markers.clear();
+  host.innerHTML = '';
 
-  try {
-    await window.ymaps3.ready;
-  } catch (error) {
-    mapState.failed = true;
-    clearTimeout(startGuard);
-    showKeyNotice();
-    return null;
-  }
+  /* Сначала границы — они нужны проекции. Считаем их по видимым точкам,
+     а не по всем: иначе при фильтре по категории карта «прыгала» бы. */
+  const visible = mapPoints().filter(pointVisible);
+  mapState.bounds = boundsOf(visible);
 
-  if (mapState.failed) return null;
+  /* И только теперь проецируем: project() без границ вернёт null. */
+  const wanted = visible.filter(point => project(point.coords));
 
-  const view = CITY_VIEW[getState().city] || CITY_VIEW['Тольятти'];
+  const empty = document.getElementById('map-empty');
+  if (empty) empty.hidden = wanted.length > 0;
 
-  try {
-    const { YMap, YMapDefaultSchemeLayer, YMapMarker } = window.ymaps3;
-    if (!YMap || !YMapDefaultSchemeLayer || !YMapMarker) {
-      throw new Error('Компоненты ymaps3 недоступны');
+  if (!wanted.length) { mapState.pendingRender = false; return; }
+
+  /* В режиме single показываем каждую точку отдельно. Он нужен, когда
+     карточка просит показать конкретное событие, спрятанное в группе. */
+  const clusters = mapState.mode === 'single'
+    ? wanted.map(point => ({ x: 0, y: 0, items: [{ point, at: project(point.coords) }] }))
+        .map(cluster => {
+          const at = cluster.items[0].at;
+          return { x: at.x, y: at.y, items: cluster.items };
+        })
+    : clusterPoints(wanted);
+
+  clusters.forEach(cluster => {
+    const single = cluster.items.length === 1;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'ym-pin ym-pin--cluster';
+    el.style.left = `${cluster.x / SCHEME_W * 100}%`;
+    el.style.top = `${cluster.y / SCHEME_H * 100}%`;
+
+    if (single) {
+      const point = cluster.items[0].point;
+      el.className = `ym-pin ym-pin--${point.type}`;
+      el.setAttribute('aria-label', point.name);
+      el.title = point.name;
+      el.innerHTML = '<span class="ym-pin-dot" aria-hidden="true"></span>';
+      /* Запоминаем сам элемент: parentElement здесь ещё null,
+         потому что метка пока не вставлена в DOM. */
+      mapState.markers.set(point.id, { element: el, point });
+      el.addEventListener('click', evt => {
+        evt.stopPropagation();
+        openCard(point, el);
+        markCardSelected(point);
+      });
+    } else {
+      const places = cluster.items.filter(item => item.point.type === 'place').length;
+      el.setAttribute('aria-label',
+        `Группа из ${cluster.items.length} точек${places ? `, ${places} с заданиями` : ''}`);
+      el.innerHTML = `<span class="ym-cluster-count">${cluster.items.length}</span>`;
+      /* Клик по кластеру раскрывает его: показываем точки рядом
+         отдельными метками вместо увеличения зума. */
+      el.addEventListener('click', evt => {
+        evt.stopPropagation();
+        expandCluster(cluster, host);
+      });
     }
 
-    mapState.map = new YMap(node, {
-      location: { center: view.center, zoom: view.zoom },
-      showScaleInCopyrights: true,
-      /* Заглушка стандартных кнопок: добавляем свои, чтобы не тянуть
-         ещё один пакет и не ломать дизайн-систему. */
-      behaviors: ['drag', 'dblClick', 'pinchZoom', 'scrollZoom']
-    });
-    mapState.map.addChild(new YMapDefaultSchemeLayer({ theme: 'light' }));
-    addMarkerLayers(mapState.map);
-  } catch (error) {
-    mapState.failed = true;
-    clearTimeout(startGuard);
-    showKeyNotice();
-    return null;
-  }
+    host.appendChild(el);
+  });
 
-  settled = true;
-  clearTimeout(startGuard);
+  mapState.pendingRender = false;
 
-  mapState.ready = true;
-  /* Пока пакет кластеризатора едет, помечаем отрисовку отложенной:
-     renderMapPoints может быть вызван из app.js в любой момент. */
-  mapState.pendingRender = true;
-  hideLoading();
-  watchForKeyError();
-
-  /* Кластеризатор — отдельный пакет. Если он не приехал (нет сети до CDN),
-     карта всё равно работает: рисуем метки напрямую. */
-  await setupClusterer();
-
-  if (mapState.pendingRender) renderMapPoints();
+  /* Отложенный фокус из карточки — выполняем, когда точки уже нарисованы. */
   if (mapState.pendingFocus) {
     const key = mapState.pendingFocus;
     mapState.pendingFocus = null;
     focusOnMap(key);
   }
-
-  return mapState.map;
 }
 
-/* Подключение кластеризатора из официального пакета.
-   Пакет only-загружаемый: если CDN недоступен, карта продолжает работать
-   без кластеров — метки рисуются напрямую. */
-async function setupClusterer() {
-  try {
-    window.ymaps3.import.registerCdn('https://cdn.jsdelivr.net/npm/{package}', '@yandex/ymaps3-clusterer@0.0.13');
-    const pkg = await window.ymaps3.import('@yandex/ymaps3-clusterer');
-    if (!pkg || !pkg.YMapClusterer) throw new Error('YMapClusterer не найден');
-    mapState.clusterPkg = pkg;
-    mapState.clusterReady = true;
-  } catch (error) {
-    mapState.clusterPkg = null;
-    mapState.clusterReady = false;
-  }
-}
+/* Раскрытие группы: рисуем её точки по одной вокруг центра группы. */
+function expandCluster(cluster, host) {
+  const radius = 34;
+  cluster.items.forEach((item, index) => {
+    const angle = (Math.PI * 2 * index) / cluster.items.length - Math.PI / 2;
+    const x = cluster.x + Math.cos(angle) * radius;
+    const y = cluster.y + Math.sin(angle) * radius;
+    const point = item.point;
 
-/* Создание кластера с конкретным набором точек.
-   Вынесено из renderMapPoints: там же он и пересоздаётся при смене
-   города или фильтра. Метки создаёт сам пакет, мы запоминаем их,
-   чтобы focus() мог найти нужную. */
-function createClusterer(features) {
-  const pkg = mapState.clusterPkg;
-  if (!pkg) return null;
-  const { YMapMarker } = window.ymaps3;
-
-  const marker = feature => {
-    const point = feature.properties.point;
-    const el = pinElement(point);
-    const mk = new YMapMarker(
-      { coordinates: feature.geometry.coordinates, source: 'brodi-source' },
-      el
-    );
-    mk.element = el;
-    mapState.markers.set(point.id, mk);
-    bindPin(mk, el, point);
-    return mk;
-  };
-
-  const cluster = (coordinates, clusterFeatures) => {
-    const el = document.createElement('div');
-    el.className = 'ym-cluster';
-    el.innerHTML = `<span>${clusterFeatures.length}</span>`;
-    return new YMapMarker({ coordinates, source: 'brodi-source' }, el);
-  };
-
-  return new pkg.YMapClusterer({
-    method: pkg.clusterByGrid({ gridSize: 60 }),
-    features,
-    marker,
-    cluster
-  });
-}
-
-/* ── Отрисовка точек ───────────────────────────────────────────────────── */
-
-function renderMapPoints() {
-  if (!mapState.ready) {
-    mapState.pendingRender = true;
-    return;
-  }
-
-  const { YMapMarker } = window.ymaps3;
-  const wanted = mapPoints().filter(point => pointVisible(point));
-
-  closeCard();
-  mapState.markers.clear();
-  mapState.featureById.clear();
-
-  /* Снимаем с карты прошлые объекты. Кластер пересоздаём целиком:
-     у пакета нет метода «заменить features» без пересборки. */
-  if (mapState.clusterer) {
-    mapState.map.removeChild(mapState.clusterer);
-    mapState.clusterer = null;
-  }
-  mapState.map.children
-    .filter(child => child && child.__brodiPin)
-    .forEach(child => mapState.map.removeChild(child));
-
-  const features = wanted.map(point => {
-    const lngLat = toLngLat(point.coords);
-    const feature = {
-      type: 'Feature',
-      id: point.id,
-      geometry: { type: 'Point', coordinates: lngLat },
-      properties: { point }
-    };
-    mapState.featureById.set(point.id, feature);
-    return feature;
-  });
-
-  const clusterer = createClusterer(features);
-  if (clusterer) {
-    mapState.clusterer = clusterer;
-    mapState.map.addChild(clusterer);
-  } else {
-    /* Без кластеризатора: по маркеру на точку. */
-    features.forEach(feature => {
-      const el = pinElement(feature.properties.point);
-      const mk = new YMapMarker(
-        { coordinates: feature.geometry.coordinates, source: 'brodi-source' },
-        el
-      );
-      mk.__brodiPin = true;
-      mk.element = el;
-      mapState.markers.set(feature.properties.point.id, mk);
-      bindPin(mk, el, feature.properties.point);
-      mapState.map.addChild(mk);
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = `ym-pin ym-pin--${point.type} is-expanded`;
+    el.style.left = `${x / SCHEME_W * 100}%`;
+    el.style.top = `${y / SCHEME_H * 100}%`;
+    el.setAttribute('aria-label', point.name);
+    el.title = point.name;
+    el.innerHTML = '<span class="ym-pin-dot" aria-hidden="true"></span>';
+    el.addEventListener('click', evt => {
+      evt.stopPropagation();
+      openCard(point, el);
+      markCardSelected(point);
     });
-  }
-
-  const empty = document.getElementById('map-empty');
-  if (empty) empty.hidden = wanted.length > 0;
-
-  fitBounds(wanted);
-  mapState.pendingRender = false;
-}
-
-/* Клики по метке: карточка и подсветка карточки в списке. */
-function bindPin(marker, el, point) {
-  el.addEventListener('click', evt => {
-    evt.stopPropagation();
-    openCard(point);
-    markCardSelected(point);
+    host.appendChild(el);
   });
 }
 
-/* Показать все точки города в кадре. */
-function fitBounds(points) {
-  if (!points.length || !mapState.map) return;
-  const lngLats = points.map(point => toLngLat(point.coords)).filter(Boolean);
-  if (!lngLats.length) return;
-
-  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-  lngLats.forEach(([lng, lat]) => {
-    if (lng < minLng) minLng = lng;
-    if (lat < minLat) minLat = lat;
-    if (lng > maxLng) maxLng = lng;
-    if (lat > maxLat) maxLat = lat;
-  });
-
-  /* Одна точка — просто центр, рамка нулевой площади не работает. */
-  if (minLng === maxLng && minLat === maxLat) {
-    mapState.map.update({ location: { center: [minLng, minLat], zoom: 14 }, duration: 300 });
-    return;
-  }
-
-  mapState.map.update({
-    location: { bounds: [[minLng, minLat], [maxLng, maxLat]], padding: CARD_OFFSET.map(v => Math.abs(v)) },
-    duration: 300
-  });
-}
-
-/* Подсветка карточки в списке, когда выбрана метка на карте. */
 function markCardSelected(point) {
   if (point.type === 'place') {
     const id = point.id.replace('place:', '');
@@ -454,28 +420,25 @@ function markCardSelected(point) {
   }
 }
 
-/* ── Центрирование из карточки/списка ──────────────────────────────────── */
+/* ── Центрирование из карточки и списка ────────────────────────────────── */
 
 function focusOnMap(pointId) {
   const key = pointId.includes(':') ? pointId : `place:${pointId}`;
 
   if (!mapState.ready) {
-    ensureMap();
     mapState.pendingFocus = key;
     return false;
   }
 
   const point = mapPoints().find(item => item.id === key);
   if (!point) {
-    /* Точки нет в текущем городе — переключаем город и пробуем снова,
-       но не глубже одного уровня рекурсии. */
     const id = key.replace('place:', '').replace('event:', '');
-    const place = getPlaces().find(item => item.id === id) ||
-                  getEvents().find(item => item.id === id);
-    if (place && place.city && place.city !== getState().city) {
-      const st = getState();
-      st.city = place.city;
-      st.category = 'Все места';
+    const item = getPlaces().find(place => place.id === id) ||
+                 getEvents().find(event => event.id === id);
+    if (item && item.city && item.city !== getState().city) {
+      const state = getState();
+      state.city = item.city;
+      state.category = 'Все места';
       if (typeof render === 'function') render();
       mapState.pendingFocus = key;
       return false;
@@ -484,89 +447,65 @@ function focusOnMap(pointId) {
   }
 
   if (!pointVisible(point)) {
-    /* Точку скрыл фильтр категории — показываем все места. */
     getState().category = 'Все места';
     if (typeof render === 'function') render();
   }
 
-  if (!mapState.markers.has(point.id)) renderMapPoints();
+  /* После смены города/фильтра границы могли не пересчитаться. */
+  if (!mapState.bounds) mapState.bounds = boundsOf(mapPoints().filter(pointVisible));
 
-  const lngLat = toLngLat(point.coords);
-  if (lngLat) {
-    mapState.map.update({
-      location: { center: lngLat, zoom: Math.max(mapState.map.zoom || 12, 14) },
-      duration: 400
-    });
+  /* Точка могла попасть в свёрнутую группу — перерисовываем без
+     кластеризации, чтобы её было видно и можно было открыть. */
+  const drawn = mapState.markers.has(key);
+  if (!drawn) {
+    /* Точка в группе: рисуем все точки по одной, чтобы её было видно. */
+    mapState.mode = 'single';
+    renderMapPoints();
   }
-  openCard(point);
+
+  const node = mapState.markers.get(key);
+  if (node && node.element) {
+    openCard(node.point || point, node.element);
+    node.element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    return true;
+  }
+
+  /* app.js может перерисовать список ПОСЛЕ вызова focus(). Тогда в этот
+     момент на схеме ещё старые метки. Открываем чуть позже — к этому
+     времени перерисовка уже прошла. */
+  setTimeout(() => {
+    const later = mapState.markers.get(key);
+    if (later && later.element) {
+      openCard(later.point || point, later.element);
+    } else {
+      /* Совсем не появилась — показываем все точки и открываем снова. */
+      mapState.mode = 'single';
+      renderMapPoints();
+      const again = mapState.markers.get(key);
+      if (again && again.element) openCard(again.point || point, again.element);
+    }
+  }, 30);
+
+  /* Ищем элемент по названию среди нарисованных. */
+  const host = document.getElementById('map-markers');
+  const fallback = host && [...host.querySelectorAll('.ym-pin')]
+    .find(el => el.getAttribute('aria-label') === point.name);
+  if (fallback) { openCard(point, fallback); return true; }
+
+  /* Точка есть в данных и после перерисовки появится — сообщаем успех,
+     иначе app.js покажет ложный тост «Карта загружается». */
   return true;
 }
 
-/* Переключение города — плавно переносим карту. */
-function moveMapToCity(city) {
-  if (!mapState.ready) return;
-  const view = CITY_VIEW[city];
-  if (!view) return;
-  closeCard();
-  mapState.map.update({ location: { center: view.center, zoom: view.zoom }, duration: 400 });
+function moveMapToCity() {
+  if (mapState.ready) renderMapPoints();
 }
+
+/* ── Состояния ─────────────────────────────────────────────────────────── */
 
 function hideLoading() {
   const loading = document.getElementById('map-loading');
   if (loading) loading.hidden = true;
-}
-
-/* Ключ Яндекса привязан к домену. Если он не подходит, API пишет об этом
-   внутри контейнера. Ловим текст и уводим в обычный список — он полезнее
-   пустого прямоугольника. Для localhost и 127.0.0.1 проверки нет. */
-function watchForKeyError() {
-  const node = document.getElementById('yandex-map');
-  if (!node) return;
-
-  let checks = 0;
-  const timer = setInterval(() => {
-    checks += 1;
-    const text = node.textContent || '';
-    const broken = /Ключ API|недействителен|Invalid key|ключ не найден|Forbidden/i.test(text);
-
-    if (broken) {
-      clearInterval(timer);
-      mapState.keyRejected = true;
-      showKeyNotice();
-    } else if (checks > 20) {
-      clearInterval(timer);
-    }
-  }, 250);
-}
-
-/* Понятная заглушка вместо технической ошибки ключа. */
-function showKeyNotice() {
-  const loading = document.getElementById('map-loading');
-  const node = document.getElementById('yandex-map');
-  if (!loading) return;
-
-  const points = mapPoints();
-  const list = points.slice(0, 6).map(point => `
-    <li>
-      <a href="${esc(point.url || '#')}" target="_blank" rel="noopener noreferrer">
-        ${esc(point.name)}
-        <span>${esc(point.address || '')}</span>
-      </a>
-    </li>`).join('');
-
-  const host = location.hostname || 'ваш домен';
-  loading.innerHTML = `
-    <div class="map-key-notice">
-      <b>Карта недоступна на этом домене</b>
-      <p>Ключ Яндекс.Карт привязан к домену. Добавьте
-         <code>${esc(host)}</code> в список разрешённых в кабинете разработчика —
-         и карта появится здесь же.</p>
-      <ul class="map-key-list">${list}</ul>
-      <p class="map-key-hint">Пока точки открываются в Яндекс.Картах по ссылке из списка.</p>
-    </div>`;
-  loading.hidden = false;
-  loading.classList.add('is-error');
-  if (node) node.style.visibility = 'hidden';
 }
 
 function showMapFallback(title, text) {
@@ -580,38 +519,28 @@ function showMapFallback(title, text) {
 
 /* ── Запуск ────────────────────────────────────────────────────────────── */
 
-/* ymaps3 грузится отдельным тегом в index.html. Ждём его, но не бесконечно. */
 function bootMap() {
-  const node = document.getElementById('yandex-map');
-  if (!node) return;
-
-  if (window.ymaps3) {
-    ensureMap();
+  const host = document.getElementById('map-markers');
+  const frame = document.getElementById('map-scheme');
+  if (!host || !frame) {
+    mapState.failed = true;
     return;
   }
 
-  let tries = 0;
-  const timer = setInterval(() => {
-    tries += 1;
-    if (window.ymaps3) {
-      clearInterval(timer);
-      ensureMap();
-    } else if (tries > 100) {           /* ~10 секунд */
-      clearInterval(timer);
-      mapState.failed = true;
-      showMapFallback('Карта не загрузилась', 'Похоже, API недоступен. Список мест слева работает как обычно.');
-    }
-  }, 100);
+  /* Подложку рисуем один раз: она не зависит от данных. */
+  if (!frame.querySelector('svg')) frame.innerHTML = schemeSvg();
+
+  mapState.ready = true;
+  hideLoading();
+  renderMapPoints();
 }
 
-/* Закрытие карточки по клику мимо и по Esc. */
-document.addEventListener('click', evt => {
-  if (evt.target.closest('.ym-card') || evt.target.closest('.ym-pin')) return;
-  closeCard();
-});
-document.addEventListener('keydown', evt => {
-  if (evt.key === 'Escape') closeCard();
-});
+/* Старые точки входа оставлены ради совместимости с app.js,
+   который может звать их до готовности. */
+function ensureMap() {
+  if (!mapState.ready) bootMap();
+  return mapState.ready ? true : null;
+}
 
 window.BrodiMap = {
   boot: bootMap,
@@ -620,9 +549,21 @@ window.BrodiMap = {
   moveToCity: moveMapToCity,
   closeCard,
   isReady: () => mapState.ready,
-  api: () => 'v3'
+  api: () => 'scheme'
 };
 
-/* map.js грузится после app.js, поэтому сообщаем, что модуль готов.
-   app.js ждёт это событие и только потом зовёт boot(). */
+/* Закрытие карточки по клику мимо и по Esc.
+   Важно: клик по элементам, которые сами открывают карточку («На карте»,
+   строка места в списке), не должен её закрывать — иначе обработчик
+   срабатывает сразу после focus() и карточка исчезает в том же клике. */
+document.addEventListener('click', evt => {
+  if (evt.target.closest('.ym-card') || evt.target.closest('.ym-pin')) return;
+  if (evt.target.closest('[data-select], [data-show-map], .task-detail, .map-card')) return;
+  closeCard();
+});
+document.addEventListener('keydown', evt => {
+  if (evt.key === 'Escape') closeCard();
+});
+
+/* map.js грузится после app.js, поэтому сообщаем, что модуль готов. */
 window.dispatchEvent(new Event('brodi:map-ready'));
