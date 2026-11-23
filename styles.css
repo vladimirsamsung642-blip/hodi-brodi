@@ -943,6 +943,103 @@ svg {
   height: 100%;
 }
 
+/* Слой подложки: рисунок растягивается по контейнеру карты. */
+.map-scheme {
+  position: absolute;
+  inset: 0;
+}
+
+.map-scheme .map-drawing {
+  display: block;
+}
+
+/* Слой меток лежит поверх подложки и не мешает карте:
+   клики принимают только сами кнопки. */
+.map-markers {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ── Метка точки на схеме ───────────────────────────────────────────────
+   Позиция задаётся в процентах от размеров схемы, поэтому метки
+   остаются на своих местах при любом размере контейнера. */
+.ym-pin {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 2px solid var(--white);
+  border-radius: 50%;
+  background: var(--purple-ink);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 6px rgba(17, 17, 19, 0.3);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform var(--speed) var(--ease), box-shadow var(--speed) linear;
+}
+
+/* События — фирменный жёлтый, места — фиолетовый. Палитра не меняется. */
+.ym-pin--event {
+  width: 16px;
+  height: 16px;
+  background: var(--yellow);
+  border-color: var(--ink);
+}
+
+.ym-pin--place { background: var(--purple-ink); }
+
+.ym-pin-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--white);
+  opacity: 0.92;
+}
+
+.ym-pin--event .ym-pin-dot {
+  background: var(--ink);
+  opacity: 0.6;
+}
+
+.ym-pin:hover,
+.ym-pin:focus-visible {
+  transform: translate(-50%, -50%) scale(1.35);
+  z-index: 3;
+}
+
+.ym-pin.is-open {
+  transform: translate(-50%, -50%) scale(1.35);
+  box-shadow: 0 0 0 4px rgba(128, 128, 216, 0.3), 0 3px 10px rgba(17, 17, 19, 0.32);
+  z-index: 4;
+}
+
+.ym-pin.is-expanded {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 2px 8px rgba(17, 17, 19, 0.28);
+}
+
+.ym-pin.is-done { background: var(--ink); }
+
+/* Группа точек: круг с числом. */
+.ym-pin--cluster {
+  width: auto;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--purple-ink);
+}
+
+.ym-cluster-count {
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 .map-drawing .route-path {
   fill: none;
   stroke: var(--purple);
@@ -1146,6 +1243,14 @@ svg {
   height: 10px;
   border-radius: 50%;
   background: var(--ink);
+}
+
+.legend-event {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--yellow);
 }
 
 .task-panel {
@@ -3962,7 +4067,7 @@ svg {
   }
 }
 
-/* ── Реальные фото и Яндекс.Карты ──────────────────────────────────────── */
+/* ── Реальные фото и карта города ──────────────────────────────────────── */
 
 /* Фото события в карточке. Контейнер держит пропорции и служит фоном
    для фолбэка, поэтому вёрстка не прыгает, если картинка не пришла. */
@@ -4066,7 +4171,7 @@ svg {
   display: none;
 }
 
-/* ── Яндекс.Карты v3: метки, кластеры, карточка ─────────────────────────
+/* ── Схема города: метки, группы, карточка ──────────────────────────────
    В v3 маркер — это обычный DOM-элемент, поэтому вид точки задаётся
    здесь, а не пресетом иконок, как было в v2.1. */
 
@@ -4131,11 +4236,11 @@ svg {
   cursor: pointer;
 }
 
-/* Карточка точки. Раньше это был балун API, теперь — свой блок,
-   поэтому нужны позиционирование и тень. */
+/* Карточка точки — своя, для схемы. Раскрывается над меткой
+   и не перекрывает её саму. */
 .ym-card {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -4184,7 +4289,7 @@ svg {
   background: var(--ink);
 }
 
-/* Балун Яндекс.Карт. */
+/* Содержимое карточки точки (класс исторический, разметка та же). */
 .ym-balloon {
   width: 268px;
   overflow: hidden;
@@ -4251,11 +4356,6 @@ svg {
 }
 
 /* Контейнер карты и состояния загрузки. */
-.yandex-map {
-  position: absolute;
-  inset: 0;
-}
-
 .map-loading {
   position: absolute;
   inset: 0;
@@ -4303,68 +4403,4 @@ svg {
   .ev-card:hover .ev-media img { transform: none; }
 }
 
-/* Заглушка, если ключ Яндекс.Карт не подходит для текущего домена. */
-.map-key-notice {
-  display: grid;
-  gap: 10px;
-  max-width: 460px;
-  text-align: left;
-}
 
-.map-key-notice b {
-  font-size: 15px;
-  color: var(--ink);
-}
-
-.map-key-notice p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.map-key-notice code {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--white);
-  border: 1px solid var(--line);
-  font-size: 12px;
-  word-break: break-all;
-}
-
-.map-key-list {
-  display: grid;
-  gap: 6px;
-  margin: 2px 0;
-  padding: 0;
-  list-style: none;
-}
-
-.map-key-list a {
-  display: grid;
-  gap: 1px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--white);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--purple-text);
-  text-decoration: none;
-  transition: border-color var(--speed) linear, background var(--speed) linear;
-}
-
-.map-key-list a:hover {
-  border-color: var(--purple-light);
-  background: var(--pale);
-}
-
-.map-key-list a span {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--muted);
-}
-
-.map-key-hint {
-  font-size: 12px !important;
-}

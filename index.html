@@ -206,8 +206,9 @@
           <span class="map-card-meta" id="place-count">5 мест в Тольятти</span>
         </div>
         <div class="city-map" id="city-map">
-          <div id="yandex-map" class="yandex-map" role="application"
-               aria-label="Карта города: выберите метку, чтобы открыть информацию о месте"></div>
+          <div class="map-scheme" id="map-scheme" aria-hidden="true"></div>
+          <div class="map-markers" id="map-markers" role="application"
+               aria-label="Схема города: выберите метку, чтобы открыть информацию о месте"></div>
           <div class="map-loading" id="map-loading">
             <span class="map-loading-dot" aria-hidden="true"></span>
             Загружаем карту…
@@ -218,10 +219,11 @@
             <p>В этом городе точек ещё нет. Загляни в Тольятти — там есть места.</p>
             <button id="back-to-city" class="btn btn--sm btn--purple" type="button">Выбрать Тольятти</button>
           </div>
-          <div class="map-note"><svg aria-hidden="true"><use href="#i-info"/></svg> Яндекс.Карты · данные hodi-brodi.ru</div>
+          <div class="map-note"><svg aria-hidden="true"><use href="#i-info"/></svg> Схема города · демонстрация · точки по реальным координатам</div>
         </div>
         <div class="map-legend">
           <span><i class="legend-pin" aria-hidden="true"></i> Место с заданием</span>
+          <span><i class="legend-event" aria-hidden="true"></i> Событие</span>
           <span><i class="legend-route" aria-hidden="true"></i> Маршрут для вдохновения</span>
           <span><i class="legend-done" aria-hidden="true"></i> Выполнено</span>
         </div>
@@ -366,8 +368,6 @@
 <script src="eventsData.js?v=20261122-real"></script>
 <script src="data.js?v=20261122-real"></script>
 <script src="app.js?v=20261122-real"></script>
-<script src="https://api-maps.yandex.ru/v3/?apikey=ac0dd8aa-6124-4239-89b1-31db39165c0a&lang=ru_RU"
-        async onerror="window.__ymapsFailed = true"></script>
-<script src="map.js?v=20261122-v3"></script>
+<script src="map.js?v=20261123-scheme"></script>
 </body>
 </html>

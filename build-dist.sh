@@ -23,8 +23,8 @@ cp index.html profile.html "$DIST"/
 cp styles.css profile.css "$DIST"/
 cp app.js map.js data.js eventsData.js profile.js "$DIST"/
 
-# Диагностика карты: помогает проверить ключ на новом домене.
-cp map-check.html map-v3-check.html "$DIST"/
+# Страницы диагностики карты больше не нужны: внешнего API нет.
+# Сами файлы остаются в репозитории как история.
 
 # Картинки проекта
 cp assets/* "$DIST/assets"/
